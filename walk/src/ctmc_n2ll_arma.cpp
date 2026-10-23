@@ -41,6 +41,10 @@ double ctmc_n2ll_arma(
     Q = load_Q_sde(from_to, Xb_q_r, Xb_q_m, hij, ns, k, clip);
   }
   
+  // Build the uniformization matrix ONCE for this Q (it does not depend on t).
+  arma::sp_mat P;
+  double alpha_0 = uniformization_P(Q, P);
+
   // Start forward loop
   arma::sp_mat Li = L.col(0).t();
   arma::rowvec v = delta % ((1-p)*Li) + (p/ns)*delta;
@@ -50,7 +54,7 @@ double ctmc_n2ll_arma(
   // Start Forward alg loop (index = i)
   for(int i=1; i<N; i++){
     Li = L.col(i).t();
-    v = v_exp_Q_t(phi, Q, dt(i), eq_prec);
+    v = v_exp_Q_t_pre(phi, P, alpha_0, dt(i), eq_prec);
     if(accu(Li)>0) v = v % ((1-p)*Li) + (p/ns)*v;
     u = accu(v);
     log_lik_v(i) = log(u);
