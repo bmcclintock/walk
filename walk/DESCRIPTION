@@ -11,7 +11,7 @@ License: CC0
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 Imports: 
-    Matrix, terra, dplyr, mvtnorm, numDeriv, optimx, sf, spdep, 
+    Matrix, terra, dplyr, numDeriv, optimx, sf, spdep, 
     ctmm, methods, tidyr, rARPACK, igraph
 LinkingTo: 
     Rcpp, RcppArmadillo

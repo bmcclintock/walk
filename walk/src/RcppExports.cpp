@@ -12,6 +12,73 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// bvn_lik_disc
+List bvn_lik_disc(NumericVector x, NumericVector y, NumericVector sxx, NumericVector syy, NumericVector sxy, NumericVector max_err, NumericVector geom, LogicalVector mask, double trunc, int nthreads);
+RcppExport SEXP _walk_bvn_lik_disc(SEXP xSEXP, SEXP ySEXP, SEXP sxxSEXP, SEXP syySEXP, SEXP sxySEXP, SEXP max_errSEXP, SEXP geomSEXP, SEXP maskSEXP, SEXP truncSEXP, SEXP nthreadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type x(xSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type y(ySEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type sxx(sxxSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type syy(syySEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type sxy(sxySEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type max_err(max_errSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type geom(geomSEXP);
+    Rcpp::traits::input_parameter< LogicalVector >::type mask(maskSEXP);
+    Rcpp::traits::input_parameter< double >::type trunc(truncSEXP);
+    Rcpp::traits::input_parameter< int >::type nthreads(nthreadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(bvn_lik_disc(x, y, sxx, syy, sxy, max_err, geom, mask, trunc, nthreads));
+    return rcpp_result_gen;
+END_RCPP
+}
+// bvn_lik_list
+List bvn_lik_list(IntegerVector obs, NumericVector cell, NumericVector x, NumericVector y, NumericVector sxx, NumericVector syy, NumericVector sxy, NumericVector max_err, NumericVector geom, LogicalVector mask, double trunc, int nthreads);
+RcppExport SEXP _walk_bvn_lik_list(SEXP obsSEXP, SEXP cellSEXP, SEXP xSEXP, SEXP ySEXP, SEXP sxxSEXP, SEXP syySEXP, SEXP sxySEXP, SEXP max_errSEXP, SEXP geomSEXP, SEXP maskSEXP, SEXP truncSEXP, SEXP nthreadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerVector >::type obs(obsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type cell(cellSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type x(xSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type y(ySEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type sxx(sxxSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type syy(syySEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type sxy(sxySEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type max_err(max_errSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type geom(geomSEXP);
+    Rcpp::traits::input_parameter< LogicalVector >::type mask(maskSEXP);
+    Rcpp::traits::input_parameter< double >::type trunc(truncSEXP);
+    Rcpp::traits::input_parameter< int >::type nthreads(nthreadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(bvn_lik_list(obs, cell, x, y, sxx, syy, sxy, max_err, geom, mask, trunc, nthreads));
+    return rcpp_result_gen;
+END_RCPP
+}
+// bvn_rect_prob
+NumericVector bvn_rect_prob(NumericVector l1, NumericVector u1, NumericVector l2, NumericVector u2, NumericVector rho);
+RcppExport SEXP _walk_bvn_rect_prob(SEXP l1SEXP, SEXP u1SEXP, SEXP l2SEXP, SEXP u2SEXP, SEXP rhoSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type l1(l1SEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type u1(u1SEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type l2(l2SEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type u2(u2SEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type rho(rhoSEXP);
+    rcpp_result_gen = Rcpp::wrap(bvn_rect_prob(l1, u1, l2, u2, rho));
+    return rcpp_result_gen;
+END_RCPP
+}
+// omp_info
+List omp_info();
+RcppExport SEXP _walk_omp_info() {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    rcpp_result_gen = Rcpp::wrap(omp_info());
+    return rcpp_result_gen;
+END_RCPP
+}
 // ctmc_n2ll_arma
 double ctmc_n2ll_arma(const arma::sp_mat& L, const arma::vec& dt, int ns, const arma::umat& from_to, const arma::vec& Xb_q_r, const arma::vec& Xb_q_m, double p, const arma::rowvec& delta, const arma::vec& hij, double eq_prec, int link_r, double a_r, double l_r, double u_r, int link_m, double a_m, int form, double k, bool norm, double clip);
 RcppExport SEXP _walk_ctmc_n2ll_arma(SEXP LSEXP, SEXP dtSEXP, SEXP nsSEXP, SEXP from_toSEXP, SEXP Xb_q_rSEXP, SEXP Xb_q_mSEXP, SEXP pSEXP, SEXP deltaSEXP, SEXP hijSEXP, SEXP eq_precSEXP, SEXP link_rSEXP, SEXP a_rSEXP, SEXP l_rSEXP, SEXP u_rSEXP, SEXP link_mSEXP, SEXP a_mSEXP, SEXP formSEXP, SEXP kSEXP, SEXP normSEXP, SEXP clipSEXP) {
@@ -185,6 +252,10 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_walk_bvn_lik_disc", (DL_FUNC) &_walk_bvn_lik_disc, 10},
+    {"_walk_bvn_lik_list", (DL_FUNC) &_walk_bvn_lik_list, 12},
+    {"_walk_bvn_rect_prob", (DL_FUNC) &_walk_bvn_rect_prob, 5},
+    {"_walk_omp_info", (DL_FUNC) &_walk_omp_info, 0},
     {"_walk_ctmc_n2ll_arma", (DL_FUNC) &_walk_ctmc_n2ll_arma, 20},
     {"_walk_ctmc_predict_arma", (DL_FUNC) &_walk_ctmc_predict_arma, 21},
     {"_walk_sp_mat_div", (DL_FUNC) &_walk_sp_mat_div, 2},

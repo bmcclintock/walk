@@ -11,7 +11,10 @@ proc_telem(
   return_type = "sparse",
   max_err = NULL,
   trunc = 1e-08,
-  return_inadmissible = FALSE
+  return_inadmissible = FALSE,
+  nthreads = 1,
+  neighborhood = c("disc", "buffer"),
+  clipRast = FALSE
 )
 }
 \arguments{
@@ -35,6 +38,31 @@ of the telemetry data.}
 \item{trunc}{The smallest probability value that is considered to be > 0. Defaults to 1.0e-8.}
 
 \item{return_inadmissible}{Logical. If there are locations outside the admissible areas of movement return the observations and raster cell numbers.}
+
+\item{nthreads}{Number of OpenMP threads used for the cell probability calculations. Defaults to 1.
+Has no effect if \code{walk} was built without OpenMP (a warning is given); check with \code{walk:::omp_info()}.}
+
+\item{neighborhood}{How the error neighbourhood of each location is found. \code{"disc"} (default)
+uses exactly the raster cells that intersect the circle of radius \code{max_err}, computed
+arithmetically from the raster geometry. \code{"buffer"} uses \code{terra::buffer()} +
+\code{terra::cells(touches=TRUE)}; the buffer is a 40-sided polygon
+inscribed in the circle, so it can miss a few cells at the edge.}
+
+\item{clipRast}{Restrict the returned likelihood matrix to part of \code{cell_data}. \code{FALSE} (default)
+keeps the full raster, so \code{L} has \code{terra::ncell(cell_data)} columns. \code{TRUE} clips to the
+error-buffer (\code{t_buf}) region: the bounding box of the circles of radius \code{max_err} around all
+locations. A \code{terra::ext()} object (or anything \code{terra::ext()} accepts, such as a \code{SpatRaster}
+or \code{SpatVector}) clips to that extent. The region is snapped outward to whole cells of
+\code{cell_data} and limited to the raster, so it matches
+\verb{terra::crop(cell_data, <region>, snap = "out")}. Cells outside the region are treated like
+\code{NA} cells: each location's likelihood is renormalised over the cells inside it. A warning is
+given if a user-supplied extent cuts through any location's error neighbourhood. When clipping,
+\code{L} has one column per cell of the clipped raster (cell numbers refer to the clipped raster)
+and the output gains a \code{clip} element (an attribute for the data.frame/matrix return types)
+with \code{ext} (the snapped extent as \code{c(xmin, xmax, ymin, ymax)}), \code{dim} (rows and columns of the
+clipped raster) and \code{cell} (cell number in \code{cell_data} of each column of \code{L}). Use
+\code{terra::crop(cell_data, terra::ext(out$clip$ext))} to get the matching covariate raster for
+\code{make_walk_data()}. \code{return_inadmissible} output always uses \code{cell_data} cell numbers.}
 }
 \description{
 Convert \code{ctmm} telemetry data object to a \code{SpatRaster} stack from the \code{terra} package.

@@ -7,3 +7,4 @@ misc_funcs.o
 test.o
 v_exp_Q_t.o
 walk.so
+bvn_cell_probs.o

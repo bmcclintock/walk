@@ -44,7 +44,6 @@ importFrom(igraph,
   graph_from_data_frame
 )
 importFrom(methods,as)
-importFrom(mvtnorm,pmvnorm)
 importFrom(rARPACK,eigs)
 importFrom(sf,
   st_drop_geometry,
@@ -85,7 +84,6 @@ importFrom(terra,
   values,
   vect,
   xFromCell,
-  xyFromCell,
   yFromCell
 )
 importFrom(tidyr,unnest)
