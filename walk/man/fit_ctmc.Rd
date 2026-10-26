@@ -13,6 +13,9 @@ fit_ctmc(
   method = "nlminb",
   fit = TRUE,
   eq_prec = 1e-08,
+  nthreads = 1,
+  prune = 0,
+  skip_zero = FALSE,
   debug = 0,
   ...
 )
@@ -37,6 +40,16 @@ form \code{list(beta_l=c(), beta_q_r=c(), beta_q_r=c())}.}
 \item{eq_prec}{Error rate of matrix exponential calculation. Defaults to \code{1.0e-8}. This is
 a generous value. If the model is running slow, you can try reducing it to, say, \code{1.0e-4}.}
 
+\item{nthreads}{Number of OpenMP threads used to evaluate independent segments
+(individuals / bursts) of the joint likelihood in parallel. Defaults to 1.}
+
+\item{prune}{Optional threshold for dropping filtered state probabilities smaller than
+\code{prune * max(phi)} during the forward recursion. \code{0} (default) is exact.}
+
+\item{skip_zero}{Logical. If \code{TRUE}, observations whose error support has zero predictive
+probability are treated as missing rather than making the likelihood infinite. The indices
+of such observations at the solution are returned in \code{zero_obs}.}
+
 \item{debug}{Integer from 1-4. Opens browser() at various points in the function call. Mostly for
 package developers.}
 
@@ -45,6 +58,14 @@ package developers.}
 }
 \description{
 Fit CTMC movement model to telemetry data
+}
+\details{
+Data from several individuals (see \code{\link{proc_Langevin}}, argument \code{id}, and
+\code{\link{bind_proc_data}}) are fitted as a single joint model: all individuals share
+the movement parameters, each individual (or each segment created with \code{max_gap}) is an
+independent chain started from \code{delta}, and the objective is the sum of the per-segment
+-2 log-likelihoods. A single-individual data set is the special case with one segment
+and gives exactly the same value as before.
 }
 \author{
 Devin S. Johnson

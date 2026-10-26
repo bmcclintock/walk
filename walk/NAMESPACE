@@ -2,10 +2,12 @@
 
 export(argos_diag_to_cov)
 export(bc_raster)
+export(bind_proc_data)
 export(check_irreducibility)
 export(ctmc_control)
 export(ctmc_model)
 export(ctmc_n2ll)
+export(ctmc_n2ll_joint)
 export(dm_q_m)
 export(dm_q_r)
 export(find_clip)

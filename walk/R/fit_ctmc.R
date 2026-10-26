@@ -10,8 +10,21 @@
 #' @param fit Logical. Should the likelihood be optimized?
 #' @param eq_prec Error rate of matrix exponential calculation. Defaults to \code{1.0e-8}. This is 
 #' a generous value. If the model is running slow, you can try reducing it to, say, \code{1.0e-4}.
+#' @param nthreads Number of OpenMP threads used to evaluate independent segments
+#' (individuals / bursts) of the joint likelihood in parallel. Defaults to 1.
+#' @param prune Optional threshold for dropping filtered state probabilities smaller than
+#' `prune * max(phi)` during the forward recursion. `0` (default) is exact.
+#' @param skip_zero Logical. If `TRUE`, observations whose error support has zero predictive
+#' probability are treated as missing rather than making the likelihood infinite. The indices
+#' of such observations at the solution are returned in `zero_obs`.
 #' @param debug Integer from 1-4. Opens browser() at various points in the function call. Mostly for 
 #' package developers. 
+#' @details Data from several individuals (see \code{\link{proc_Langevin}}, argument `id`, and
+#' \code{\link{bind_proc_data}}) are fitted as a single joint model: all individuals share
+#' the movement parameters, each individual (or each segment created with `max_gap`) is an
+#' independent chain started from `delta`, and the objective is the sum of the per-segment
+#' -2 log-likelihoods. A single-individual data set is the special case with one segment
+#' and gives exactly the same value as before.
 #' @param ... Additional arguments passed to the optimization function 
 #' \code{\link[optimx]{optimr}} from the \code{\link[optimx]{optimx-package}}.
 #' @author Devin S. Johnson
@@ -21,7 +34,8 @@
 fit_ctmc <- function(walk_data, 
                      model_parameters = ctmc_control(), 
                      pen_fun = NULL, hessian=TRUE, start=NULL, method="nlminb", 
-                     fit=TRUE, eq_prec = 1.0e-8, debug=0, ...){
+                     fit=TRUE, eq_prec = 1.0e-8, nthreads = 1, prune = 0,
+                     skip_zero = FALSE, debug=0, ...){
   
   if(debug==1) browser()
   # cell_idx_df <- select(walk_data$q_r, cell, cellx) %>% distinct()
@@ -119,10 +133,25 @@ fit_ctmc <- function(walk_data,
   clip <- model_parameters$clip
   if(is.null(clip) || clip<0) clip <- 0
   
+  times <- walk_data$times
+  seg <- times$seg
+  if(is.null(seg)) seg <- rep(1L, nrow(times))
+  seg_start <- which(c(TRUE, seg[-1] != seg[-length(seg)])) - 1L
+  if(any(duplicated(seg[seg_start + 1L]))) stop("Segments in 'walk_data$times' are not contiguous.")
+  dt <- times$dt
+  dt[seg_start + 1L] <- 0
+  if(any(dt < 0)) stop("Negative time differences within a segment. Re-run proc_telem() or proc_Langevin() with the 'id' argument.")
+  if(!isTRUE(attr(times, "time_unit") == "hours")) warning("walk_data$times$dt is not flagged as hours; rate parameters are per '", attr(times, "time_unit"), "'.")
+  
   data_list <- list(
     N = nrow(walk_data$L),
+    seg_start = as.integer(seg_start),
+    Lt = as(Matrix::t(walk_data$L), "dgCMatrix"),
+    nthreads = as.integer(nthreads),
+    prune = prune,
+    skip_zero = skip_zero,
     ns = nrow(walk_data$q_r),
-    dt = walk_data$times$dt,
+    dt = dt,
     L = walk_data$L,
     delta = delta,
     hij=walk_data$q_m$h,
@@ -156,9 +185,9 @@ fit_ctmc <- function(walk_data,
   # ctmc_n2ll(par, data_list)
   
   if(is.null(pen_fun)){
-    obj_fun <- function(par, data_list, ...){ctmc_n2ll(par, data_list, debug=0, ...)}
+    obj_fun <- function(par, data_list, ...){as.numeric(ctmc_n2ll_joint(par, data_list, debug=0))}
   } else{
-    obj_fun <- function(par, data_list, ...){ctmc_n2ll(par, data_list, debug=0, ...) - 2*pen_fun(par)}
+    obj_fun <- function(par, data_list, ...){as.numeric(ctmc_n2ll_joint(par, data_list, debug=0)) - 2*pen_fun(par)}
   }
   
   if(debug==2) browser()
@@ -180,15 +209,18 @@ fit_ctmc <- function(walk_data,
     if(hessian){
       message('Calculating Hessian and variance-covariance matrices...')  
       H <- numDeriv::hessian(obj_fun, opt$par, data_list=data_list)
-      V <- 2*solve(H)
+      V <- tryCatch(2*solve(H), error=function(e){
+        warning("Hessian is singular; standard errors not available.")
+        NULL})
     } else{
       V <- NULL
       H <- NULL 
     }
   } else{
+    # do not evaluate the (possibly very expensive) likelihood when fit = FALSE
     hessian <- FALSE
     V <- NULL
-    opt <- list(par=par_start, objective=obj_fun(par_start, data_list))
+    opt <- list(par=par_start, value=NA_real_, convergence=NA_integer_)
   }
   
   if(debug==3) browser()
@@ -201,8 +233,18 @@ fit_ctmc <- function(walk_data,
     H <- NULL
   }
   
+  zero_obs <- NULL
+  if(fit){
+    zz <- ctmc_n2ll_joint(par, data_list, by_segment=TRUE)
+    zero_obs <- attr(zz, "zero_obs")
+    seg_n2ll <- as.vector(zz)
+  } else seg_n2ll <- NULL
+  
   out <- list(
     par = par,
+    seg_n2ll = seg_n2ll,
+    zero_obs = zero_obs,
+    n_seg = length(seg_start),
     vcov = V,
     log_lik = -0.5*opt$value,
     aic = opt$value + 2*length(par),

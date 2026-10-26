@@ -1,7 +1,7 @@
 
 // [[Rcpp::depends(RcppArmadillo)]]
 
-#include "walk_types.h"
+#include "ctmc_common.h"
 
 // ---------------------------------------------------------------------------
 // Build the uniformization matrix P = I + Q / alpha_0 once, and return alpha_0.
@@ -44,28 +44,9 @@ arma::mat v_exp_Q_t_pre(const arma::rowvec& v, const arma::sp_mat& P,
   // 1. Calculate the time-dependent uniformization rate
   double alpha = alpha_0 * t;
 
-  // 2. Dynamically calculate the safe upper truncation bound 'm'
-  int m = 0;
-  double running_right_sum = 0.0;
-  while (running_right_sum < (1.0 - tolerance)) {
-    double log_p_m = m * std::log(alpha) - alpha - std::lgamma(m + 1);
-    running_right_sum += std::exp(log_p_m);
-    m++;
-    if (m > 1000000) break;        // safety guard
-  }
-
-  // 3. Dynamically calculate the lower truncation bound 'm_lower'
-  int m_lower = 0;
-  double running_left_sum = 0.0;
-  for (int n = 0; n <= m; ++n) {
-    double log_p_n = n * std::log(alpha) - alpha - std::lgamma(n + 1);
-    running_left_sum += std::exp(log_p_n);
-    if (running_left_sum < tolerance) {
-      m_lower = n;
-    } else {
-      break;
-    }
-  }
+  // 2.-3. Poisson truncation window [m_lower, m] (shared with ctmc_n2ll_joint.cpp)
+  int m_lower, m;
+  poisson_window(alpha, tolerance, m_lower, m);
 
   // 4. Forward accumulate the Poisson series
   arma::rowvec v_curr = v;

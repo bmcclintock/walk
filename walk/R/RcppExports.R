@@ -21,6 +21,20 @@ ctmc_n2ll_arma <- function(L, dt, ns, from_to, Xb_q_r, Xb_q_m, p, delta, hij, eq
     .Call(`_walk_ctmc_n2ll_arma`, L, dt, ns, from_to, Xb_q_r, Xb_q_m, p, delta, hij, eq_prec, link_r, a_r, l_r, u_r, link_m, a_m, form, k, norm, clip)
 }
 
+#' Joint multi-segment CTMC -2 log-likelihood (internal)
+#' @return list(n2ll = per-segment -2 log L, zero_obs = 1-based indices of
+#'   observations with zero predictive probability)
+#' @keywords internal
+ctmc_n2ll_joint_arma <- function(L, dt, seg_start, ns, from_to, Xb_q_r, Xb_q_m, p, delta, hij, eq_prec, link_r, a_r, l_r, u_r, link_m, a_m, form, k, norm, clip, nthreads = 1L, prune = 0.0, skip_zero = FALSE) {
+    .Call(`_walk_ctmc_n2ll_joint_arma`, L, dt, seg_start, ns, from_to, Xb_q_r, Xb_q_m, p, delta, hij, eq_prec, link_r, a_r, l_r, u_r, link_m, a_m, form, k, norm, clip, nthreads, prune, skip_zero)
+}
+
+#' Report whether walk was compiled with OpenMP
+#' @keywords internal
+walk_has_openmp <- function() {
+    .Call(`_walk_walk_has_openmp`)
+}
+
 ctmc_predict_arma <- function(L, dt, ns, from_to, Xb_q_r, Xb_q_m, p, delta, hij, eq_prec, trunc_tol, link_r, a_r, l_r, u_r, link_m, a_m, form, k, norm, clip) {
     .Call(`_walk_ctmc_predict_arma`, L, dt, ns, from_to, Xb_q_r, Xb_q_m, p, delta, hij, eq_prec, trunc_tol, link_r, a_r, l_r, u_r, link_m, a_m, form, k, norm, clip)
 }

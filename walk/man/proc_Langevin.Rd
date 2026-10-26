@@ -2,7 +2,7 @@
 % Please edit documentation in R/proc_Langevin.R
 \name{proc_Langevin}
 \alias{proc_Langevin}
-\title{Convert \code{simLangevin}  or \verb{dataLangevin' object to a }SpatRaster\verb{stack from the}terra` package.}
+\title{Convert \code{simLangevin} or \code{dataLangevin} data to a likelihood surface on a \code{SpatRaster}}
 \usage{
 proc_Langevin(
   data,
@@ -13,11 +13,15 @@ proc_Langevin(
   return_inadmissible = FALSE,
   nthreads = 1,
   neighborhood = c("disc", "buffer"),
-  clipRast = FALSE
+  clipRast = FALSE,
+  id = "id",
+  time_unit = "hours",
+  max_gap = NULL
 )
 }
 \arguments{
-\item{data}{A \code{simLangevin} or \verb{dataLangevin' object from the }langevinSSM` package}
+\item{data}{A \code{simLangevin} or \code{dataLangevin} object from the \code{langevinSSM} package, or a
+\strong{list} of them (e.g. one per individual).}
 
 \item{cell_data}{A \verb{\link[terra]\{SpatRaster\}} stack of covariates that will be used in CTMC
 movement modeling. Cells with \code{NA} values will be considered areas to the animal cannot travel, i.e.,
@@ -58,16 +62,37 @@ and the output gains a \code{clip} element (an attribute for the data.frame/matr
 with \code{ext} (the snapped extent as \code{c(xmin, xmax, ymin, ymax)}), \code{dim} (rows and columns of the
 clipped raster) and \code{cell} (cell number in \code{cell_data} of each column of \code{L}). Use
 \code{terra::crop(cell_data, terra::ext(out$clip$ext))} to get the matching covariate raster for
-\code{make_walk_data()}. \code{return_inadmissible} output always uses \code{cell_data} cell numbers.}
+\code{make_walk_data()}. \code{return_inadmissible} output always uses \code{cell_data} cell numbers.
+To process individuals separately and combine them with \code{\link{bind_proc_data}}, give
+every call the same extent (a \code{terra::ext()}), not \code{TRUE}, so that all outputs share one grid.}
+
+\item{id}{Name of the column in \code{data} identifying individuals (default \code{"id"}). If the column
+is absent, list elements are named by their list names (or position), and a single object is
+individual \code{"1"}. Time differences are computed \strong{within} individual and every individual
+starts a new, independent Markov chain in the likelihood. Rows of one individual must be
+contiguous and in time order. Set to \code{NULL} to ignore any \code{id} column.}
+
+\item{time_unit}{Unit for the stored time differences \code{times$dt}: one of \code{"secs"}, \code{"mins"},
+\code{"hours"} (default), \code{"days"} or \code{"weeks"} (\code{"seconds"} and \code{"minutes"} are also accepted).
+Fitted rates are per \code{time_unit}.}
+
+\item{max_gap}{Optional. Gaps longer than \code{max_gap} (in \code{time_unit}) start a new, independent
+segment (the chain is restarted from \code{delta}). This removes the cost and the numerical
+liability of propagating the CTMC across very long gaps without discarding any locations.}
 }
 \description{
-Convert \code{simLangevin}  or \verb{dataLangevin' object to a }SpatRaster\verb{stack from the}terra` package.
+Convert \code{simLangevin} or \code{dataLangevin} data to a likelihood surface on a \code{SpatRaster}
 }
 \details{
 This function takes the error information in \code{data} to
 produce a likelihood surface over the \code{SpatRaster} defined by
 \code{cell_data} for each location. This can then be passed to
-CTMC HMM fitting functions.
+CTMC HMM fitting functions. The arguments and the output have the same form as
+\code{\link{proc_telem}}, so data processed by either function can be combined with
+\code{\link{bind_proc_data}}. The \code{times} data frame returned with the likelihood
+contains columns \code{obs}, \code{id}, \code{seg}, \code{timestamp} and \code{dt} (attribute \code{time_unit}); \code{dt} is \code{0}
+at the first observation of every segment. Observations with zero likelihood in every admissible
+cell get an all-zero row in \code{L} and are treated as missing by the fitting functions.
 }
 \author{
 Devin S. Johnson

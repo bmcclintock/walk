@@ -11,6 +11,8 @@ make_walk_data(
   rast_mask = NULL,
   get_subset_idx = TRUE,
   directions = "rook",
+  mask_zero = TRUE,
+  crop_to_data = NULL,
   debug = 0,
   ...
 )
@@ -29,6 +31,15 @@ if \code{cell_data} is an \code{POLYGON} data frame from the \code{sf} package.}
 \item{get_subset_idx}{Logical. Should a rate matrix subsetting approximation be used to increase computational speed.}
 
 \item{directions}{Neighborhood structure, one of \code{"rook"} or \code{"queen"}.}
+
+\item{mask_zero}{Logical. If \code{TRUE} (default) cells where \code{rast_mask} is \code{0} are dropped as
+well as cells where it is \code{NA}. A mask built with
+\code{terra::rasterize(land, r, field = 0, background = 1)} contains no \code{NA}s, so with
+\code{mask_zero = FALSE} it would drop nothing.}
+
+\item{crop_to_data}{Optional buffer distance (map units). If supplied, \code{cell_data} (and
+\code{rast_mask}) are cropped to the extent of the cells with non-zero observation likelihood plus
+this buffer before the rate-matrix data are built.}
 
 \item{debug}{Debugging level: 1-3 mainly for package developers.}
 

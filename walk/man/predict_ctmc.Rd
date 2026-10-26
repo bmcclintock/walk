@@ -9,6 +9,7 @@ predict_ctmc(
   walk_data,
   aux_timestamp = NULL,
   trunc_tol = 1e-08,
+  segments = NULL,
   debug = 0,
   ...
 )
@@ -18,16 +19,30 @@ predict_ctmc(
 
 \item{walk_data}{A design data list produced by the function \code{\link{make_walk_data}}.}
 
-\item{aux_timestamp}{Additional POSIX times for which location prediction is desired.}
+\item{aux_timestamp}{Additional POSIX times for which location prediction is desired. For
+multi-individual data supply a data frame with columns \code{id} and \code{timestamp}.}
 
 \item{trunc_tol}{Level for truncating small location prediction probabilities.}
+
+\item{segments}{Optional integer vector of segment numbers (\code{walk_data$times$seg}) or
+character vector of individual ids to predict. Defaults to all.}
 
 \item{debug}{Developer debugging.}
 
 \item{...}{Aditional arguments passed to internal function \code{ctmc_predict_arma}.}
 }
+\value{
+A list with \code{local_state_prob} (sparse \code{dgCMatrix}) and \code{times}.
+}
 \description{
 Predict Movement Path From Fitted CTMC Model
+}
+\details{
+Each independent segment (individual, or burst created by \code{max_gap} in
+\code{\link{proc_Langevin}}) is smoothed separately with the shared fitted rate matrix.
+The smoothed state probabilities are returned as a sparse matrix (rows = prediction
+times of all segments stacked, columns = cells) because a dense matrix is
+\verb{N x ns} and quickly exhausts memory.
 }
 \references{
 Hewitt, J., Gelfand, A. E., & Schick, R. S. (2023). Time-discretization approximation enriches continuous-time discrete-space models for animal movement. The Annals of Applied Statistics, 17:740-760.
