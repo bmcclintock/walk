@@ -15,7 +15,7 @@ bind_proc_data(..., ids = NULL)
 }
 \value{
 A list with \code{L} (sparse), \code{times} (columns \code{obs}, \code{id}, \code{seg}, \code{timestamp}, \code{dt},
-attribute \code{time_unit}) and, if the inputs were clipped, \code{clip}; the same form as the output of
+attributes \code{time_unit} and \code{ts_scale}) and, if the inputs were clipped, \code{clip}; the same form as the output of
 \code{\link{proc_telem}} and \code{\link{proc_Langevin}}.
 }
 \description{
@@ -29,8 +29,7 @@ multi-individual data set.
 All inputs must have been built on the same \code{cell_data} and, if \code{clipRast} was used,
 the same clipping region (identical \verb{$clip}; use one \code{terra::ext()} for every call rather than
 \code{clipRast = TRUE}, which gives each call its own region). All inputs must use the same
-\code{time_unit}. Segments are renumbered so they stay distinct, and an individual may not appear
+\code{time_unit} and the same kind of time stamps (all POSIXct, or all numeric in the same units).
+Segments are renumbered so they stay distinct, and an individual may not appear
 in more than one input (use \code{max_gap}, not separate inputs, to split one animal's track).
-Older output without \code{id}/\code{seg} columns (from versions of \code{walk} before these were added)
-is accepted: each such input is one individual and one segment.
 }

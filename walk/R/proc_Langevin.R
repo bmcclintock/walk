@@ -41,9 +41,16 @@
 #' individual `"1"`. Time differences are computed **within** individual and every individual
 #' starts a new, independent Markov chain in the likelihood. Rows of one individual must be
 #' contiguous and in time order. Set to `NULL` to ignore any `id` column.
-#' @param time_unit Unit for the stored time differences `times$dt`: one of `"secs"`, `"mins"`,
-#' `"hours"` (default), `"days"` or `"weeks"` (`"seconds"` and `"minutes"` are also accepted).
-#' Fitted rates are per `time_unit`.
+#' @param time_unit Unit for the stored time differences `times$dt`, and so for the fitted rates.
+#' `NULL` (default) uses the time unit of `data`: the `"time.unit"` attribute that
+#' `langevinSSM::formatData()` sets (and `simLangevin()` keeps when it simulates from data).
+#' Otherwise one of `"secs"`, `"mins"`, `"hours"`, `"days"` or `"weeks"` (`"seconds"` and
+#' `"minutes"` are also accepted), and `dt` is converted to that unit. If `data` has no
+#' `"time.unit"` attribute: POSIXct/Date dates default to `"hours"` (the default `time.unit` of
+#' `langevinSSM::formatData()`); numeric dates (e.g.
+#' `simLangevin()` output simulated without data) are used as they are, in the units of the
+#' `date` column, and the stored unit is `"native"` unless `time_unit` is given, in which case
+#' it only names the unit of the numeric dates (no conversion).
 #' @param max_gap Optional. Gaps longer than `max_gap` (in `time_unit`) start a new, independent
 #' segment (the chain is restarted from `delta`). This removes the cost and the numerical
 #' liability of propagating the CTMC across very long gaps without discarding any locations.
@@ -53,7 +60,8 @@
 #' CTMC HMM fitting functions. The arguments and the output have the same form as
 #' \code{\link{proc_telem}}, so data processed by either function can be combined with
 #' \code{\link{bind_proc_data}}. The `times` data frame returned with the likelihood
-#' contains columns `obs`, `id`, `seg`, `timestamp` and `dt` (attribute `time_unit`); `dt` is `0`
+#' contains columns `obs`, `id`, `seg`, `timestamp` and `dt` (attributes `time_unit`, and
+#' `ts_scale`, the factor converting differences of `as.numeric(timestamp)` to `dt`); `dt` is `0`
 #' at the first observation of every segment. Observations with zero likelihood in every admissible
 #' cell get an all-zero row in `L` and are treated as missing by the fitting functions.
 #' 
@@ -64,7 +72,7 @@
 #' @export
 proc_Langevin <- function(data, cell_data, return_type="sparse", max_err=NULL, trunc=1.0e-8, 
                           return_inadmissible=FALSE, nthreads=1, neighborhood=c("disc","buffer"),
-                          clipRast=FALSE, id="id", time_unit="hours", max_gap=NULL){
+                          clipRast=FALSE, id="id", time_unit=NULL, max_gap=NULL){
   neighborhood <- match.arg(neighborhood)
   proc_check_return_type(return_type)
   proc_check_threads(nthreads)
@@ -76,9 +84,12 @@ proc_Langevin <- function(data, cell_data, return_type="sparse", max_err=NULL, t
   
   # Individual / segment structure
   idl <- proc_ids(xl, id, dl$is_list)
+  if(any(vapply(xl, function(d) is.null(d$date), TRUE))) stop("'data' has no 'date' column.")
+  dcl <- unique(vapply(xl, function(d) if(inherits(d$date, "POSIXt")) "POSIXct" else class(d$date)[1], ""))
+  if(length(dcl) > 1) stop("The 'date' columns of the inputs have different classes (", paste(dcl, collapse=", "), ").")
   ts <- do.call(c, lapply(xl, function(d) d$date))
-  if(is.null(ts)) stop("'data' has no 'date' column.")
-  times <- proc_times(unlist(idl, use.names=FALSE), ts, time_unit, max_gap)
+  tr <- proc_resolve_time(ts, lapply(xl, proc_obj_unit), time_unit, default="hours")
+  times <- proc_times(unlist(idl, use.names=FALSE), ts, tr, max_gap)
   # Stack only the columns used below (list elements may carry different extra columns)
   cols <- c("x", "y", "smaj", "smin", "eor", "x.err", "y.err")
   d <- do.call(rbind, lapply(xl, function(z){
@@ -130,12 +141,11 @@ proc_Langevin <- function(data, cell_data, return_type="sparse", max_err=NULL, t
 #' @details All inputs must have been built on the same `cell_data` and, if `clipRast` was used,
 #' the same clipping region (identical `$clip`; use one `terra::ext()` for every call rather than
 #' `clipRast = TRUE`, which gives each call its own region). All inputs must use the same
-#' `time_unit`. Segments are renumbered so they stay distinct, and an individual may not appear
+#' `time_unit` and the same kind of time stamps (all POSIXct, or all numeric in the same units).
+#' Segments are renumbered so they stay distinct, and an individual may not appear
 #' in more than one input (use `max_gap`, not separate inputs, to split one animal's track).
-#' Older output without `id`/`seg` columns (from versions of `walk` before these were added)
-#' is accepted: each such input is one individual and one segment.
 #' @return A list with `L` (sparse), `times` (columns `obs`, `id`, `seg`, `timestamp`, `dt`,
-#' attribute `time_unit`) and, if the inputs were clipped, `clip`; the same form as the output of
+#' attributes `time_unit` and `ts_scale`) and, if the inputs were clipped, `clip`; the same form as the output of
 #' \code{\link{proc_telem}} and \code{\link{proc_Langevin}}.
 #' @export
 bind_proc_data <- function(..., ids=NULL){
@@ -153,6 +163,10 @@ bind_proc_data <- function(..., ids=NULL){
          "Pass the same terra::ext() as 'clipRast' to every call.")
   tu <- unique(vapply(x, function(z){ u <- attr(z$times, "time_unit"); if(is.null(u)) NA_character_ else u }, ""))
   if(length(tu)!=1 || is.na(tu)) stop("All inputs must have the same (non-missing) 'time_unit' attribute.")
+  tsc <- vapply(x, function(z) proc_ts_scale(z$times), 1)
+  if(any(abs(tsc - tsc[1]) > 1e-12 * abs(tsc[1])))
+    stop("The inputs have time stamps on different scales (e.g. POSIXct and numeric dates). ",
+         "Use the same kind of time stamps for every input.")
   seg_off <- 0L
   tl <- vector("list", length(x))
   for(k in seq_along(x)){
@@ -175,6 +189,7 @@ bind_proc_data <- function(..., ids=NULL){
                                   ". Use 'ids' to rename, or process each animal in one call (use 'max_gap' to split a track).")
   times$obs <- seq_len(nrow(times))
   attr(times, "time_unit") <- tu
+  attr(times, "ts_scale") <- tsc[1]
   L <- do.call(rbind, lapply(x, function(z) as(z$L, "CsparseMatrix")))
   out <- list(L=as(as(L, "generalMatrix"), "dgCMatrix"), times=times)
   if(!is.null(cl[[1]])) out$clip <- cl[[1]]

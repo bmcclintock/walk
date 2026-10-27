@@ -13,6 +13,50 @@ proc_time_unit <- function(time_unit){
   list(unit=tu, mult=c(secs=1, mins=60, hours=3600, days=86400, weeks=604800)[[tu]])
 }
 
+# Time unit stored on an input object (langevinSSM: attr(, "time.unit")), normalised, or NULL.
+proc_obj_unit <- function(d){
+  u <- attr(d, "time.unit", exact=TRUE)
+  if(is.null(u)) u <- attr(d, "time_unit", exact=TRUE)
+  if(is.null(u) || length(u) != 1 || is.na(u)) return(NULL)
+  tryCatch(proc_time_unit(as.character(u))$unit, error=function(e)
+    stop("Unrecognised time unit attribute '", u, "' on 'data'. Set 'time_unit' explicitly.", call.=FALSE))
+}
+
+# Resolve the time unit of the output and the factor that converts differences of
+# as.numeric(timestamp) into that unit.
+#   ts:        stacked time stamps (POSIXct, Date or numeric)
+#   obj_units: list of per-input unit attributes (NULL entries allowed)
+#   time_unit: user value (NULL = use the object's unit)
+#   default:   unit used for POSIXct/Date time stamps when neither time_unit nor an object
+#              unit is given ("hours", the default time.unit of langevinSSM::formatData())
+# Rules:
+#   * POSIXct/Date time stamps: output unit = time_unit, else the object's unit, else 'default'.
+#   * numeric time stamps with an object unit: they are in that unit; converted to time_unit if given.
+#   * numeric time stamps without an object unit (e.g. simLangevin output): they are used as they
+#     are; time_unit, if given, only names their unit; otherwise the unit is "native"
+#     (the units of the 'date' column).
+proc_resolve_time <- function(ts, obj_units, time_unit, default){
+  ou <- unique(unlist(lapply(obj_units, function(u) if(is.null(u)) NA_character_ else u)))
+  if(length(ou) > 1) stop("The inputs have different time units (", paste(ou, collapse=", "),
+                          "). Convert them to a common unit first.", call.=FALSE)
+  obj <- if(length(ou) == 0 || is.na(ou)) NULL else ou
+  if(inherits(ts, "POSIXt")) ts_secs <- 1
+  else if(inherits(ts, "Date")) ts_secs <- 86400
+  else if(is.numeric(ts)) ts_secs <- if(is.null(obj)) NA_real_ else proc_time_unit(obj)$mult
+  else stop("Time stamps must be POSIXct, Date or numeric.", call.=FALSE)
+  unit <- if(!is.null(time_unit)) proc_time_unit(time_unit)$unit else if(!is.null(obj)) obj else
+    if(is.na(ts_secs)) "native" else proc_time_unit(default)$unit
+  scale <- if(unit == "native" || is.na(ts_secs)) 1 else ts_secs / proc_time_unit(unit)$mult
+  list(unit=unit, scale=scale)
+}
+
+# Factor converting differences of as.numeric(times$timestamp) into times$dt units.
+proc_ts_scale <- function(times){
+  s <- attr(times, "ts_scale", exact=TRUE)
+  if(is.null(s)) stop("'times' has no 'ts_scale' attribute. Re-run proc_telem() or proc_Langevin().", call.=FALSE)
+  s
+}
+
 # Split a list of objects (one per individual) from a single object.
 # Returns a list of objects; 'is_list' tells whether the input was a list.
 proc_as_list <- function(data, cls, what){
@@ -48,10 +92,9 @@ proc_ids <- function(xl, id, is_list, fallback=NULL){
 }
 
 # Build the 'times' data frame shared by proc_telem() and proc_Langevin().
-# idv: character id per row; timestamp: POSIXct per row (stacked in row order).
-proc_times <- function(idv, timestamp, time_unit, max_gap){
+# idv: character id per row; timestamp: stacked time stamps; tr: proc_resolve_time() result.
+proc_times <- function(idv, timestamp, tr, max_gap){
   n <- length(idv)
-  tu <- proc_time_unit(time_unit)
   if(any(is.na(idv))) stop("Missing values in the individual ids.")
   if(any(duplicated(rle(idv)$values)))
     stop("Rows for each individual must be contiguous. Sort 'data' by id, then time ",
@@ -60,10 +103,10 @@ proc_times <- function(idv, timestamp, time_unit, max_gap){
   if(length(tnum) != n) stop("Time stamps are missing.")
   if(any(is.na(tnum))) stop("Missing values in the time stamps.")
   first <- !duplicated(idv)
-  dtsec <- c(0, diff(tnum))
-  dtsec[first] <- 0
-  if(any(dtsec < 0)) stop("Observations are not in time order within individual.")
-  dt <- dtsec / tu$mult
+  dts <- c(0, diff(tnum))
+  dts[first] <- 0
+  if(any(dts < 0)) stop("Observations are not in time order within individual.")
+  dt <- dts * tr$scale
   new_seg <- first
   if(!is.null(max_gap)){
     if(!is.numeric(max_gap) || length(max_gap) != 1 || is.na(max_gap) || max_gap <= 0)
@@ -74,7 +117,8 @@ proc_times <- function(idv, timestamp, time_unit, max_gap){
   seg <- as.integer(cumsum(new_seg))
   times <- data.frame(obs=seq_len(n), id=idv, seg=seg, timestamp=timestamp, dt=dt,
                       stringsAsFactors=FALSE)
-  attr(times, "time_unit") <- tu$unit
+  attr(times, "time_unit") <- tr$unit
+  attr(times, "ts_scale") <- tr$scale
   times
 }
 

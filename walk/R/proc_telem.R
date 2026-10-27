@@ -55,7 +55,8 @@
 #' CTMC HMM fitting functions. The arguments and the output have the same form as
 #' \code{\link{proc_Langevin}}, so data processed by either function can be combined with
 #' \code{\link{bind_proc_data}}. The `times` data frame returned with the likelihood
-#' contains columns `obs`, `id`, `seg`, `timestamp` and `dt` (attribute `time_unit`); `dt` is `0`
+#' contains columns `obs`, `id`, `seg`, `timestamp` and `dt` (attributes `time_unit`, and
+#' `ts_scale`, the factor converting differences of `as.numeric(timestamp)` to `dt`); `dt` is `0`
 #' at the first observation of every segment. Observations with zero likelihood in every admissible
 #' cell get an all-zero row in `L` and are treated as missing by the fitting functions.
 #' 
@@ -84,7 +85,9 @@ proc_telem <- function(data, cell_data, return_type="sparse", max_err=NULL, trun
   })
   ts <- do.call(c, lapply(xl, function(d) d$timestamp))
   if(is.null(ts)) stop("'data' has no 'timestamp' column.")
-  times <- proc_times(unlist(idl, use.names=FALSE), ts, time_unit, max_gap)
+  if(is.null(time_unit)) stop("'time_unit' must be one of 'secs', 'mins', 'hours', 'days', 'weeks'.")
+  tr <- proc_resolve_time(ts, list(NULL), time_unit, default="hours")
+  times <- proc_times(unlist(idl, use.names=FALSE), ts, tr, max_gap)
 
   # Evaluate error covariance (per telemetry object: the UERE is per object)
   err_nms <- c("COV.x.x", "COV.x.y", "COV.y.y")

@@ -1,7 +1,8 @@
 #' @title Predict Movement Path From Fitted CTMC Model
 #' @param fit A fitted model object produced by \code{\link[walk]{fit_ctmc}}
 #' @param walk_data A design data list produced by the function \code{\link{make_walk_data}}.
-#' @param aux_timestamp Additional POSIX times for which location prediction is desired. For
+#' @param aux_timestamp Additional times for which location prediction is desired, of the same
+#' kind as the data time stamps (POSIXct, or numeric for numeric `date`s). For
 #' multi-individual data supply a data frame with columns `id` and `timestamp`.
 #' @param trunc_tol Level for truncating small location prediction probabilities. 
 #' @param segments Optional integer vector of segment numbers (`walk_data$times$seg`) or
@@ -26,8 +27,7 @@ predict_ctmc <- function(fit, walk_data, aux_timestamp=NULL, trunc_tol=1.0e-8, s
   if(is.null(times_all$seg)) times_all$seg <- 1L
   if(is.null(times_all$id)) times_all$id <- "1"
   time_unit <- attr(times_all, "time_unit")
-  if(is.null(time_unit)) time_unit <- "hours"
-  mult <- switch(time_unit, secs=1, mins=60, hours=3600, days=86400, weeks=604800)
+  ts_scale <- proc_ts_scale(walk_data$times)
   times_all$row_obs <- seq_len(nrow(times_all))
   
   from_to <- t(cbind(data_list$from, data_list$to))
@@ -64,7 +64,7 @@ predict_ctmc <- function(fit, walk_data, aux_timestamp=NULL, trunc_tol=1.0e-8, s
     }
     tk <- tk[order(tk$timestamp, tk$type),]
     tk <- tk[!duplicated(tk[,c("timestamp","type")]),]
-    tk$dt <- c(0, diff(as.numeric(tk$timestamp))) / mult
+    tk$dt <- c(0, diff(as.numeric(tk$timestamp))) * ts_scale
     Lk <- Matrix::sparseMatrix(i=integer(0), j=integer(0), x=numeric(0), dims=c(data_list$ns, nrow(tk)))
     io <- which(tk$type=="o")
     Lk[, io] <- Lt_all[, tk$row_obs[io], drop=FALSE]
@@ -85,6 +85,7 @@ predict_ctmc <- function(fit, walk_data, aux_timestamp=NULL, trunc_tol=1.0e-8, s
   times <- do.call(rbind, res_T)
   times$row <- seq_len(nrow(times))
   attr(times, "time_unit") <- time_unit
+  attr(times, "ts_scale") <- ts_scale
   if(debug==3) browser()
   return(list(local_state_prob=do.call(rbind, res_P), times=times))
 }

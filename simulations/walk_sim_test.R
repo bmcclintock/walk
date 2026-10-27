@@ -330,8 +330,8 @@ for(ind in 1:length(sigmaList)){
                   }
                 }
                 spatialCovsWalk[[isim]] <- rast(cropCovsWalk)
-                pt_data_new <- tryCatch(proc_Langevin(subDatWalk[[isim]], spatialCovsWalk[[isim]],neighborhood="buffer"),error=function(e) e)
-                stop()
+                pt_data <- tryCatch(proc_Langevin(subDatWalk[[isim]], spatialCovsWalk[[isim]],neighborhood="buffer"),error=function(e) e)
+
                 if(inherits(pt_data,"error")){
                   message("    Retrying Simulation ",isim,": ",pt_data$message)
                   next
@@ -447,7 +447,7 @@ for(ind in 1:length(sigmaList)){
                           axis.title.x = ggplot2::element_blank(),
                           axis.text.x = ggplot2::element_blank(),
                           axis.title.y = ggplot2::element_blank() 
-                        ) + geom_point(aes(x=x,y=y),data=subDatWalk[[isim]],col="orange")
+                        ) + geom_path(aes(x=x,y=y, group = id),data=subDatWalk[[isim]],col="orange")
                       
                       
                       p2 <- ggplot2::ggplot() +
@@ -463,7 +463,7 @@ for(ind in 1:length(sigmaList)){
                         ggplot2::theme(
                           axis.title.x = ggplot2::element_blank(),
                           axis.title.y = ggplot2::element_blank() 
-                        ) + geom_path(aes(x=mu.x,y=mu.y),data=simLang[[isim]],col="orange")
+                        ) + geom_path(aes(x=mu.x,y=mu.y, group=id),data=simLang[[isim]],col="orange")
                       
                       print(p1 + p2 + patchwork::plot_layout(ncol = 1, nrow = 2, guides = "collect"))
                       

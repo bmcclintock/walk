@@ -15,7 +15,7 @@ proc_Langevin(
   neighborhood = c("disc", "buffer"),
   clipRast = FALSE,
   id = "id",
-  time_unit = "hours",
+  time_unit = NULL,
   max_gap = NULL
 )
 }
@@ -72,9 +72,16 @@ individual \code{"1"}. Time differences are computed \strong{within} individual 
 starts a new, independent Markov chain in the likelihood. Rows of one individual must be
 contiguous and in time order. Set to \code{NULL} to ignore any \code{id} column.}
 
-\item{time_unit}{Unit for the stored time differences \code{times$dt}: one of \code{"secs"}, \code{"mins"},
-\code{"hours"} (default), \code{"days"} or \code{"weeks"} (\code{"seconds"} and \code{"minutes"} are also accepted).
-Fitted rates are per \code{time_unit}.}
+\item{time_unit}{Unit for the stored time differences \code{times$dt}, and so for the fitted rates.
+\code{NULL} (default) uses the time unit of \code{data}: the \code{"time.unit"} attribute that
+\code{langevinSSM::formatData()} sets (and \code{simLangevin()} keeps when it simulates from data).
+Otherwise one of \code{"secs"}, \code{"mins"}, \code{"hours"}, \code{"days"} or \code{"weeks"} (\code{"seconds"} and
+\code{"minutes"} are also accepted), and \code{dt} is converted to that unit. If \code{data} has no
+\code{"time.unit"} attribute: POSIXct/Date dates default to \code{"hours"} (the default \code{time.unit} of
+\code{langevinSSM::formatData()}); numeric dates (e.g.
+\code{simLangevin()} output simulated without data) are used as they are, in the units of the
+\code{date} column, and the stored unit is \code{"native"} unless \code{time_unit} is given, in which case
+it only names the unit of the numeric dates (no conversion).}
 
 \item{max_gap}{Optional. Gaps longer than \code{max_gap} (in \code{time_unit}) start a new, independent
 segment (the chain is restarted from \code{delta}). This removes the cost and the numerical
@@ -90,7 +97,8 @@ produce a likelihood surface over the \code{SpatRaster} defined by
 CTMC HMM fitting functions. The arguments and the output have the same form as
 \code{\link{proc_telem}}, so data processed by either function can be combined with
 \code{\link{bind_proc_data}}. The \code{times} data frame returned with the likelihood
-contains columns \code{obs}, \code{id}, \code{seg}, \code{timestamp} and \code{dt} (attribute \code{time_unit}); \code{dt} is \code{0}
+contains columns \code{obs}, \code{id}, \code{seg}, \code{timestamp} and \code{dt} (attributes \code{time_unit}, and
+\code{ts_scale}, the factor converting differences of \code{as.numeric(timestamp)} to \code{dt}); \code{dt} is \code{0}
 at the first observation of every segment. Observations with zero likelihood in every admissible
 cell get an all-zero row in \code{L} and are treated as missing by the fitting functions.
 }

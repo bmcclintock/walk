@@ -92,7 +92,8 @@ defined by \code{cell_data} for each location. This can then be passed to
 CTMC HMM fitting functions. The arguments and the output have the same form as
 \code{\link{proc_Langevin}}, so data processed by either function can be combined with
 \code{\link{bind_proc_data}}. The \code{times} data frame returned with the likelihood
-contains columns \code{obs}, \code{id}, \code{seg}, \code{timestamp} and \code{dt} (attribute \code{time_unit}); \code{dt} is \code{0}
+contains columns \code{obs}, \code{id}, \code{seg}, \code{timestamp} and \code{dt} (attributes \code{time_unit}, and
+\code{ts_scale}, the factor converting differences of \code{as.numeric(timestamp)} to \code{dt}); \code{dt} is \code{0}
 at the first observation of every segment. Observations with zero likelihood in every admissible
 cell get an all-zero row in \code{L} and are treated as missing by the fitting functions.
 }

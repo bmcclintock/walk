@@ -65,7 +65,9 @@ Data from several individuals (see \code{\link{proc_Langevin}}, argument \code{i
 the movement parameters, each individual (or each segment created with \code{max_gap}) is an
 independent chain started from \code{delta}, and the objective is the sum of the per-segment
 -2 log-likelihoods. A single-individual data set is the special case with one segment
-and gives exactly the same value as before.
+and gives exactly the same value as before. Rates are per unit of \code{walk_data$times$dt},
+i.e. per \code{time_unit} of \code{\link{proc_Langevin}} / \code{\link{proc_telem}}; the unit is
+returned as \code{time_unit}.
 }
 \author{
 Devin S. Johnson

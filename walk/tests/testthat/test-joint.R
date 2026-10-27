@@ -87,9 +87,9 @@ test_that("joint fit converges and predict_ctmc returns distributions", {
   w <- sim_world()
   pAB <- suppressWarnings(proc_Langevin(as_dl(rbind(w$A, w$B)), w$cv))
   wd <- add_d(make_walk_data(pAB, w$cv))
-  f <- suppressWarnings(fit_ctmc(wd, model_parameters = mp_test(), start = list(
+  f <- suppressMessages(suppressWarnings(fit_ctmc(wd, model_parameters = mp_test(), start = list(
     beta_q_r = par_test()[1], beta_q_m = c(0, 0)), nthreads = 2,
-    control = list(eval.max = 200, iter.max = 100)))
+    control = list(eval.max = 200, iter.max = 100))))
   expect_equal(f$opt$convergence, 0)
   expect_equal(f$n_seg, 2L)
   expect_true(all(is.finite(f$vcov)))

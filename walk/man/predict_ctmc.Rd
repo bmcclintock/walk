@@ -19,7 +19,8 @@ predict_ctmc(
 
 \item{walk_data}{A design data list produced by the function \code{\link{make_walk_data}}.}
 
-\item{aux_timestamp}{Additional POSIX times for which location prediction is desired. For
+\item{aux_timestamp}{Additional times for which location prediction is desired, of the same
+kind as the data time stamps (POSIXct, or numeric for numeric \code{date}s). For
 multi-individual data supply a data frame with columns \code{id} and \code{timestamp}.}
 
 \item{trunc_tol}{Level for truncating small location prediction probabilities.}

@@ -4,7 +4,10 @@
 test_that("proc_telem and proc_Langevin have the same arguments", {
   a <- names(formals(proc_telem)); b <- names(formals(proc_Langevin))
   expect_identical(a, b)
-  expect_identical(formals(proc_telem)[-1], formals(proc_Langevin)[-1])
+  # same defaults except time_unit: "hours" for proc_telem, NULL (the data's unit) for proc_Langevin
+  ft <- formals(proc_telem)[-1]; fl <- formals(proc_Langevin)[-1]
+  expect_identical(ft[names(ft) != "time_unit"], fl[names(fl) != "time_unit"])
+  expect_identical(ft$time_unit, "hours"); expect_null(fl$time_unit)
 })
 
 test_that("proc_telem: id from ctmm identity, list input, max_gap, same times as proc_Langevin", {
@@ -87,10 +90,8 @@ test_that("bind_proc_data combines proc_telem, proc_Langevin, or a mix", {
   expect_error(bind_proc_data(pAc, pCc), "clipRast")
   expect_error(bind_proc_data(pA, suppressWarnings(proc_Langevin(C, w$cv, return_type = "data.frame"))),
                "return_type")
-  # 'ids' overrides, and old-style output without id/seg is accepted
-  old <- pA; old$times <- old$times[, c("obs", "timestamp", "dt")]
-  attr(old$times, "time_unit") <- "hours"
-  b <- bind_proc_data(old, pCd <- suppressWarnings(proc_Langevin(C, w$cv)), ids = c("x", "y"))
+  # 'ids' overrides
+  b <- bind_proc_data(pA, suppressWarnings(proc_Langevin(C, w$cv)), ids = c("x", "y"))
   expect_equal(unique(b$times$id), c("x", "y"))
   expect_equal(unique(b$times$seg), 1:2)
 })

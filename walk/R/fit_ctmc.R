@@ -24,7 +24,9 @@
 #' the movement parameters, each individual (or each segment created with `max_gap`) is an
 #' independent chain started from `delta`, and the objective is the sum of the per-segment
 #' -2 log-likelihoods. A single-individual data set is the special case with one segment
-#' and gives exactly the same value as before.
+#' and gives exactly the same value as before. Rates are per unit of `walk_data$times$dt`,
+#' i.e. per `time_unit` of \code{\link{proc_Langevin}} / \code{\link{proc_telem}}; the unit is
+#' returned as `time_unit`.
 #' @param ... Additional arguments passed to the optimization function 
 #' \code{\link[optimx]{optimr}} from the \code{\link[optimx]{optimx-package}}.
 #' @author Devin S. Johnson
@@ -141,7 +143,7 @@ fit_ctmc <- function(walk_data,
   dt <- times$dt
   dt[seg_start + 1L] <- 0
   if(any(dt < 0)) stop("Negative time differences within a segment. Re-run proc_telem() or proc_Langevin() with the 'id' argument.")
-  if(!isTRUE(attr(times, "time_unit") == "hours")) warning("walk_data$times$dt is not flagged as hours; rate parameters are per '", attr(times, "time_unit"), "'.")
+  time_unit <- attr(times, "time_unit")
   
   data_list <- list(
     N = nrow(walk_data$L),
@@ -245,6 +247,7 @@ fit_ctmc <- function(walk_data,
     seg_n2ll = seg_n2ll,
     zero_obs = zero_obs,
     n_seg = length(seg_start),
+    time_unit = time_unit,
     vcov = V,
     log_lik = -0.5*opt$value,
     aic = opt$value + 2*length(par),
