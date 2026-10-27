@@ -1,16 +1,13 @@
 #!/usr/bin/env Rscript
 ###############################################################################
 ## Benchmark: walk 'devel' (GitHub, dsjohnson/walk) vs the modified walk
-##            built from your working directory
+##            (GitHub, bmcclintock/walk, branch 'speed-up')
 ##
-## 1. Clones dsjohnson/walk and installs two versions side by side, each in its
-##    own library (both are called 'walk', so each is run in a separate R
+## 1. Clones both repositories and installs two versions side by side, each in
+##    its own library (both are called 'walk', so each is run in a separate R
 ##    process with callr):
-##      devel     : origin/devel
-##      modified  : the walk package in the working directory (getwd()), i.e.
-##                  either the repo root containing walk/ or the package dir
-##                  itself; override with WALK_MOD_DIR. The source is copied
-##                  to the work dir first, so your tree is never modified.
+##      devel     : https://github.com/dsjohnson/walk     @ devel
+##      modified  : https://github.com/bmcclintock/walk   @ speed-up
 ## 2. Simulates tracks with langevinSSM::simLangevin (exampleCovs, Argos-type
 ##    error ellipses, irregular sampling).
 ## 3. For each grid resolution, in each version:
@@ -30,37 +27,31 @@
 ##    disc also picks up the edge cells the polygonised buffer misses).
 ## 5. Optional: full nlminb fit of one animal in both versions.
 ##
-## Usage:   from the walk repo root (or walk/ package dir):
-##            Rscript path/to/bench_walk_devel_vs_modified.R [quick]
-##          or, in an R session there: source("path/to/bench_walk_devel_vs_modified.R")
+## Usage:   Rscript bench_walk_devel_vs_modified.R [quick]
+##          or, in an R session: source("bench_walk_devel_vs_modified.R")
 ##          (set QUICK <- TRUE before source() for the quick run)
-## Env:     WALKBENCH_DIR  work dir (default: <tempdir>/walkbench)
-##          WALK_MOD_DIR   source dir of the modified walk (default: working directory)
+## Env:     WALKBENCH_OUT  output dir for results and write-up (default: working directory)
+##          WALKBENCH_DIR  build/scratch dir: clones, libraries (default: <tempdir>/walkbench)
+##          WALK_MOD_REPO, WALK_MOD_REF   override the modified repo / branch
 ##          LANGEVIN_TAR   langevinSSM source tarball; only used if langevinSSM is not
 ##                         installed (the installed version is used otherwise)
-## Output:  <work>/results/{proc_times,lik_times,lik_values,L_compare,fit}.csv,
-##          results.rds and summary.txt
+## Output (in the working directory):
+##          walkbench_report.md   write-up: setup, checks, speed-up tables
+##          walkbench_summary.txt full printed tables and checks
+##          walkbench_{proc_times,lik_times,lik_values,L_compare,fit}.csv
+##          walkbench_results.rds everything above + config + sessionInfo
 ###############################################################################
 
 args  <- commandArgs(trailingOnly = TRUE)
 if (!exists("QUICK")) QUICK <- "quick" %in% args
 
-# Modified walk: package dir in (or below) the working directory
-find_walk_pkg <- function(d) {
-  d <- normalizePath(d, mustWork = TRUE)
-  is_walk <- function(x) file.exists(file.path(x, "DESCRIPTION")) &&
-    identical(unname(read.dcf(file.path(x, "DESCRIPTION"), "Package")[1, 1]), "walk")
-  if (is_walk(d)) return(d)
-  if (is_walk(file.path(d, "walk"))) return(file.path(d, "walk"))
-  stop("No 'walk' package found in ", d, " or ", file.path(d, "walk"),
-       ". Run from your walk repo (or set WALK_MOD_DIR).")
-}
-
 CFG <- list(
   work        = Sys.getenv("WALKBENCH_DIR", file.path(tempdir(), "walkbench")),
   repo        = "https://github.com/dsjohnson/walk.git",
   devel_ref   = "origin/devel",
-  mod_dir     = find_walk_pkg(Sys.getenv("WALK_MOD_DIR", getwd())),
+  mod_repo    = Sys.getenv("WALK_MOD_REPO", "https://github.com/bmcclintock/walk.git"),
+  mod_ref     = Sys.getenv("WALK_MOD_REF", "speed-up"),
+  out         = normalizePath(Sys.getenv("WALKBENCH_OUT", here::here("simulations","results")), mustWork = TRUE),
   langevin_tar = Sys.getenv("LANGEVIN_TAR", ""),
   strip_missing = TRUE,              # drop ctmm / rARPACK from DESCRIPTION/NAMESPACE only if not installed
   # simulation (langevinSSM units: exampleCovs are 400 x 400 cells of size 1)
@@ -80,10 +71,13 @@ CFG <- list(
   fit_one     = TRUE                  # full fit of animal 1 on the coarsest grid
 )
 if (QUICK) { CFG$grids <- 4; CFG$nbAnimals <- 2; CFG$obsPerAnimal <- 1000; CFG$nrep <- 1 }
+if (exists("GRIDS")) CFG$grids <- GRIDS   # e.g. GRIDS <- c(4, 2) before source() to skip the 1-cell grid
 
 dir.create(CFG$work, recursive = TRUE, showWarnings = FALSE)
-res_dir <- file.path(CFG$work, "results"); dir.create(res_dir, showWarnings = FALSE)
-logf <- file.path(res_dir, "summary.txt")
+res_dir <- CFG$out
+outf <- function(x) file.path(res_dir, paste0("walkbench_", x))
+logf <- outf("summary.txt")
+t_start <- Sys.time()
 say <- function(...) { m <- sprintf(...); cat(m, "\n"); cat(m, "\n", file = logf, append = TRUE) }
 cat("", file = logf)
 run <- function(cmd, args, wd = NULL, ...) {
@@ -123,19 +117,19 @@ run("git", c("worktree", "prune"), wd = repo_dir)
 run("git", c("worktree", "add", "-f", "--detach", src_devel, CFG$devel_ref), wd = repo_dir)
 prep_src(file.path(src_devel, "walk"))
 lib_devel <- file.path(CFG$work, "lib_devel"); install_to(file.path(src_devel, "walk"), lib_devel)
-say("devel    : %s @ %s -> %s", CFG$repo, devel_sha, lib_devel)
+say("devel    : %s @ devel (%s) -> %s", CFG$repo, devel_sha, lib_devel)
 
-# copy the working-directory package (your tree is left untouched; compiled objects are dropped)
-src_mod <- file.path(CFG$work, "src_mod"); unlink(src_mod, recursive = TRUE); dir.create(src_mod)
-file.copy(CFG$mod_dir, src_mod, recursive = TRUE)
-src_mod_pkg <- file.path(src_mod, basename(CFG$mod_dir))
-git_info <- tryCatch({
-  g <- function(...) suppressWarnings(system2("git", c("-C", shQuote(CFG$mod_dir), ...), stdout = TRUE, stderr = FALSE))
-  br <- g("rev-parse", "--abbrev-ref", "HEAD"); sha <- g("rev-parse", "--short", "HEAD")
-  dirty <- length(g("status", "--porcelain", "--", ".")) > 0
-  if (length(sha)) sprintf(" [git %s @ %s%s]", br, sha, if (dirty) ", with uncommitted changes" else "") else ""
-}, error = function(e) "")
-mod_desc <- paste0(CFG$mod_dir, git_info)
+# modified: bmcclintock/walk @ speed-up, fetched into the same clone as a second remote
+remotes <- run("git", c("remote"), wd = repo_dir)
+if (!"modified" %in% remotes) run("git", c("remote", "add", "modified", CFG$mod_repo), wd = repo_dir) else
+  run("git", c("remote", "set-url", "modified", CFG$mod_repo), wd = repo_dir)
+run("git", c("fetch", "-q", "modified", CFG$mod_ref), wd = repo_dir)
+mod_sha <- run("git", c("rev-parse", "--short", "FETCH_HEAD"), wd = repo_dir)
+src_mod <- file.path(CFG$work, "src_mod"); unlink(src_mod, recursive = TRUE)
+run("git", c("worktree", "prune"), wd = repo_dir)
+run("git", c("worktree", "add", "-f", "--detach", src_mod, mod_sha), wd = repo_dir)
+src_mod_pkg <- file.path(src_mod, "walk")
+mod_desc <- sprintf("%s @ %s (%s)", CFG$mod_repo, CFG$mod_ref, mod_sha)
 prep_src(src_mod_pkg)
 lib_mod <- file.path(CFG$work, "lib_mod"); install_to(src_mod_pkg, lib_mod)
 say("modified : %s -> %s", mod_desc, lib_mod)
@@ -157,7 +151,7 @@ base_libs <- unique(c(lib_lsm, .libPaths()))
 
 ## ---- 2. Simulate tracks ----------------------------------------------------------
 sim_file <- file.path(CFG$work, "sim.rds")
-callr::r(function(cfg, out) {
+invisible(callr::r(function(cfg, out) {
   suppressPackageStartupMessages({ library(langevinSSM); library(terra) })
   set.seed(cfg$seed, kind = "Mersenne-Twister", normal.kind = "Inversion")
   s <- simLangevin(par = cfg$par, spatialCovs = exampleCovs, nbAnimals = cfg$nbAnimals,
@@ -167,7 +161,7 @@ callr::r(function(cfg, out) {
   covs <- terra::wrap(c(exampleCovs$cov1, exampleCovs$cov2, exampleCovs$cov3))
   saveRDS(list(sim = s, covs = covs, version = as.character(packageVersion("langevinSSM"))), out)
   invisible(NULL)
-}, args = list(cfg = CFG, out = sim_file), libpath = base_libs)
+}, args = list(cfg = CFG, out = sim_file), libpath = base_libs))
 S <- readRDS(sim_file)
 say("simulated (langevinSSM %s): %d animals, %d fixes (%s), median dt %.3f, median smaj %.2f",
     S$version, length(unique(S$sim$id)), nrow(S$sim), paste(table(S$sim$id), collapse = "/"),
@@ -311,14 +305,14 @@ ld <- subset(D$lik_t, select = c(grid, par, time)); names(ld)[3] <- "devel_time"
 LT <- merge(LT, ld, by = c("grid", "par")); LT$speedup <- LT$devel_time / LT$time
 
 FT <- rbind(D$fit, M$fit)
-write.csv(PT, file.path(res_dir, "proc_times.csv"), row.names = FALSE)
-write.csv(LT, file.path(res_dir, "lik_times.csv"), row.names = FALSE)
-write.csv(V,  file.path(res_dir, "lik_values.csv"), row.names = FALSE)
-write.csv(Lc, file.path(res_dir, "L_compare.csv"), row.names = FALSE)
+write.csv(PT, outf("proc_times.csv"), row.names = FALSE)
+write.csv(LT, outf("lik_times.csv"), row.names = FALSE)
+write.csv(V,  outf("lik_values.csv"), row.names = FALSE)
+write.csv(Lc, outf("L_compare.csv"), row.names = FALSE)
 if (!is.null(FT)) write.csv(transform(FT, par = sapply(par, function(x) paste(signif(x, 8), collapse = " "))),
-                            file.path(res_dir, "fit.csv"), row.names = FALSE)
-saveRDS(list(cfg = CFG, devel_sha = devel_sha, mod = mod_desc, proc = PT, lik_time = LT, lik_value = V,
-             L = Lc, fit = FT, sessionInfo = sessionInfo()), file.path(res_dir, "results.rds"))
+                            outf("fit.csv"), row.names = FALSE)
+saveRDS(list(cfg = CFG, devel_sha = devel_sha, mod = mod_desc, mod_sha = mod_sha, proc = PT, lik_time = LT, lik_value = V,
+             L = Lc, fit = FT, sessionInfo = sessionInfo()), outf("results.rds"))
 
 ## ---- 5. Report -------------------------------------------------------------------
 op <- options(width = 200, digits = 10)
@@ -336,6 +330,111 @@ if (!is.null(FT)) pr("Full fit, animal 1, coarsest grid (nlminb, no Hessian)",
                      transform(FT, par = sapply(par, function(x) paste(signif(x, 8), collapse = " "))))
 options(op)
 
+## ---- 6. Write-up (Markdown) -------------------------------------------------------
+write_report <- function() {
+  f <- outf("report.md"); L <- character()
+  w <- function(...) L <<- c(L, sprintf(...))
+  md_tab <- function(df) {
+    df <- as.data.frame(df); df[] <- lapply(df, function(x) if (is.numeric(x)) format(x, trim = TRUE, drop0trailing = TRUE) else as.character(x))
+    c(paste0("| ", paste(names(df), collapse = " | "), " |"), paste0("|", strrep("---|", ncol(df))),
+      apply(df, 1, function(r) paste0("| ", paste(r, collapse = " | "), " |")))
+  }
+  rng <- function(x, d = 1) if (length(x) == 0) "NA" else if (diff(range(x)) < 10^-d) sprintf(paste0("%.", d, "f"), x[1]) else
+    sprintf(paste0("%.", d, "f–%.", d, "f"), min(x), max(x))
+  cells <- setNames(unique(PT[, c("grid", "cells")])$cells, unique(PT[, c("grid", "cells")])$grid)
+  gs <- sort(unique(PT$grid), decreasing = TRUE)
+  
+  w("# walk devel vs modified (speed-up): benchmark report")
+  w("")
+  w("Generated %s by `bench_walk_devel_vs_modified.R`%s. Run time %.1f min.", format(Sys.time(), "%Y-%m-%d %H:%M"),
+    if (QUICK) " (quick mode)" else "", as.numeric(difftime(Sys.time(), t_start, units = "mins")))
+  w("")
+  w("## Setup")
+  w("")
+  w("- **devel:** %s @ `devel` (%s).", CFG$repo, devel_sha)
+  w("- **modified:** %s.", mod_desc)
+  w("- **Versions loaded:** walk %s (devel) and %s (modified; OpenMP %s). Each ran in its own R process.", D$walk, M$walk, M$openmp)
+  w("- **Simulated data:** langevinSSM %s, `simLangevin` (underdamped, beta = (%s), sigma = %g, gamma = %g) on `exampleCovs`.",
+    S$version, paste(CFG$par$beta, collapse = ", "), CFG$par$sigma, CFG$par$gamma)
+  w("  - %d animals, %d fixes, subsampled to irregular times (median dt %.3f).", length(unique(S$sim$id)), nrow(S$sim),
+    median(S$sim$dt[S$sim$dt > 0]))
+  w("  - Argos-type error ellipses (median smaj %.2f).", median(S$sim$smaj))
+  w("- **Grids:** `exampleCovs` aggregated by %s, i.e. %s cells.", paste(gs, collapse = ", "),
+    paste(format(cells[as.character(gs)], big.mark = ",", trim = TRUE), collapse = ", "))
+  w("- **Model:** movement `%s`, log links, `norm = FALSE`. −2ll evaluated at %d parameter vectors.",
+    deparse(CFG$form_m), length(unique(V$par)))
+  w("- **Timing:** median of %d run(s) after one warm-up. Machine: %s, %d cores, R %s.", CFG$nrep, Sys.info()[["sysname"]],
+    parallel::detectCores(), getRversion())
+  w("")
+  w("## Checks")
+  w("")
+  w("- **L, devel vs modified `buffer` (abs tol %g): %s.**", CFG$L_tol, if (ok_L) "PASS" else "FAIL")
+  for (i in which(Lc$compare == "devel vs modified buffer"))
+    w("  - %s: %d vs %d non-zeros, %d/%d cells only in one version, max abs diff %.3g.", Lc$grid[i], Lc$nnz_a[i], Lc$nnz_b[i],
+      Lc$only_a[i], Lc$only_b[i], Lc$max_abs_all[i])
+  w("- **−2ll, devel vs modified (`buffer` L, and the modified likelihood on devel's own L), rel tol %g: %s.**",
+    CFG$rel_tol, if (ok_V) "PASS" else "FAIL")
+  w("  - Max relative difference %.3g over %d comparisons.", max(V$rel_diff[V$expect_equal]), sum(V$expect_equal & V$version == "modified"))
+  w("- **Joint call vs sum of per-animal values (modified):** max abs diff %.3g.", max(abs(jt$n2ll.x - jt$n2ll.y)))
+  if (!is.null(FT) && nrow(FT) == 2) {
+    w("- **Full fit of animal 1** (%s cells, nlminb, same start):", format(cells[as.character(FT$grid[1])], big.mark = ","))
+    w("  - −2ll: devel %.7f, modified %.7f (difference %.3g).", FT$n2ll[1], FT$n2ll[2], FT$n2ll[2] - FT$n2ll[1])
+    w("  - Max abs parameter difference %.3g; convergence codes %s.", max(abs(FT$par[[1]] - FT$par[[2]])), paste(FT$convergence, collapse = "/"))
+  }
+  dsc <- Lc[Lc$compare == "devel vs modified disc", ]
+  dv <- V[V$L_from == "modified disc", ]
+  w("- **`disc` vs `buffer` (not expected to be identical):**")
+  w("  - Extra cells in `disc` that the polygonised buffer misses: %s.",
+    paste(sprintf("%s cells: %d", format(cells[sub("^grid", "", dsc$grid)], big.mark = ",", trim = TRUE), dsc$only_b), collapse = "; "))
+  w("  - Its −2ll differs from devel by %.2g to %.2g (relative).", min(dv$rel_diff), max(dv$rel_diff))
+  w("")
+  w("## Speed")
+  w("")
+  w("Speed-up = devel time / modified time. All times are for all animals together.")
+  w("")
+  w("### `proc_Langevin`")
+  w("")
+  pt <- PT[PT$version == "modified", ]
+  tab <- do.call(rbind, lapply(gs, function(g) {
+    d <- pt[pt$grid == g, ]; dv <- PT$devel_time[PT$grid == g][1]
+    cell <- function(nb, cl, th) { r <- d[d$neighborhood == nb & d$call == cl & d$threads == th, ]
+    if (nrow(r)) sprintf("%.3f s (%.0f×)", r$time, r$speedup) else "—" }
+    data.frame(cells = format(cells[as.character(g)], big.mark = ","), devel = sprintf("%.2f s", dv),
+               `buffer, per animal, 1 thr` = cell("buffer", "per animal", 1), `buffer, one call, 2 thr` = cell("buffer", "one call (id)", max(CFG$threads)),
+               `disc, per animal, 1 thr` = cell("disc", "per animal", 1), `disc, one call, 2 thr` = cell("disc", "one call (id)", max(CFG$threads)),
+               check.names = FALSE)
+  }))
+  L <- c(L, md_tab(tab)); w("")
+  w("### −2 log-likelihood (one evaluation; range over parameter vectors)")
+  w("")
+  lt <- LT[LT$version == "modified", ]
+  tab <- do.call(rbind, lapply(gs, function(g) {
+    d <- lt[lt$grid == g, ]; dv <- unique(LT[LT$grid == g & LT$version == "devel", c("par", "time")])
+    cell <- function(Lf, how, th) { r <- d[d$L_from == Lf & d$how == how & d$threads == th, ]
+    if (nrow(r)) sprintf("%s s (%s×)", rng(r$time, 3), rng(r$speedup, 0)) else "—" }
+    data.frame(cells = format(cells[as.character(g)], big.mark = ","), devel = sprintf("%s s", rng(dv$time, 2)),
+               `per animal, devel's L` = cell("devel buffer", "ctmc_n2ll_joint per animal", 1),
+               `per animal, buffer` = cell("modified buffer", "ctmc_n2ll_joint per animal", 1),
+               `joint, 1 thr` = cell("modified buffer", "ctmc_n2ll_joint one joint call", 1),
+               `joint, 2 thr` = cell("modified buffer", "ctmc_n2ll_joint one joint call", max(CFG$threads)),
+               check.names = FALSE)
+  }))
+  L <- c(L, md_tab(tab)); w("")
+  if (!is.null(FT) && nrow(FT) == 2)
+    w("**Full fit, animal 1:** devel %.1f s → modified %.2f s (%.0f×).", FT$time[1], FT$time[2], FT$time[1] / FT$time[2])
+  w("")
+  w("## Notes")
+  w("")
+  w("- **Devel has no joint likelihood,** so the devel figure is `ctmc_n2ll` per animal, summed.")
+  w("- **\"per animal, devel's L\"** runs the modified likelihood on exactly the inputs devel used. It isolates the likelihood code from the `proc_Langevin` step.")
+  w("- **`disc`** uses every cell that touches the exact error circle, while `buffer` uses `terra::buffer` + `terra::cells(touches = TRUE)`. Only `buffer` is expected to match devel.")
+  if (any(!vapply(c("ctmm", "rARPACK"), requireNamespace, TRUE, quietly = TRUE)))
+    w("- **`ctmm`/`rARPACK`:** not installed on this machine, so they were removed from DESCRIPTION/NAMESPACE of both builds before installing.")
+  w("- **Files:** `walkbench_summary.txt` (all tables), `walkbench_*.csv`, `walkbench_results.rds`.")
+  writeLines(L, f, useBytes = TRUE)
+  invisible(f)
+}
+
 ok_L <- all(Lc$pass, na.rm = TRUE); ok_V <- all(V$pass, na.rm = TRUE)
 say("\nCHECK  L identical (devel vs modified buffer, tol %g): %s", CFG$L_tol, if (ok_L) "PASS" else "FAIL")
 say("CHECK  -2ll equal (devel vs modified, buffer / devel L, rel tol %g): %s  (max rel diff %.3g)",
@@ -344,4 +443,5 @@ jt <- merge(subset(V, version == "modified" & how == "ctmc_n2ll_joint per animal
             subset(V, version == "modified" & how == "ctmc_n2ll_joint one joint call", c(grid, par, L_from, threads, n2ll)),
             by = c("grid", "par", "L_from"))
 say("CHECK  joint call = sum of per-animal (modified): max abs diff %.3g", max(abs(jt$n2ll.x - jt$n2ll.y)))
-say("Results written to %s", res_dir)
+write_report()
+say("Results and write-up (walkbench_report.md) written to %s", res_dir)

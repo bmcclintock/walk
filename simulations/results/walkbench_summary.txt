@@ -1,0 +1,206 @@
+== Building walk versions (work dir: /var/folders/m1/tqln9y8n5rxfxmglfv3hpm_wh7_yfn/T//RtmpUuv3Y1/walkbench) 
+devel    : https://github.com/dsjohnson/walk.git @ devel (b39f00b) -> /var/folders/m1/tqln9y8n5rxfxmglfv3hpm_wh7_yfn/T//RtmpUuv3Y1/walkbench/lib_devel 
+modified : https://github.com/bmcclintock/walk.git @ speed-up (55e35ff) -> /var/folders/m1/tqln9y8n5rxfxmglfv3hpm_wh7_yfn/T//RtmpUuv3Y1/walkbench/lib_mod 
+simulated (langevinSSM 0.0.2): 4 animals, 1200 fixes (307/304/282/307), median dt 0.070, median smaj 2.38 
+== Running devel 
+== Running modified 
+walk loaded from: devel /private/var/folders/m1/tqln9y8n5rxfxmglfv3hpm_wh7_yfn/T/RtmpUuv3Y1/walkbench/lib_devel/walk (0.0.1.9005) | modified /private/var/folders/m1/tqln9y8n5rxfxmglfv3hpm_wh7_yfn/T/RtmpUuv3Y1/walkbench/lib_mod/walk (0.0.1.9005, OpenMP TRUE) 
+
+== proc_Langevin time (s, median of nrep; all animals) 
+ grid  version  cells neighborhood threads          call   time devel_time speedup
+    1    devel 160000       buffer       1    per animal 25.667     25.667     1.0
+    1 modified 160000       buffer       1    per animal  0.601     25.667    42.7
+    1 modified 160000       buffer       1 one call (id)  0.583     25.667    44.0
+    1 modified 160000       buffer       2    per animal  0.529     25.667    48.5
+    1 modified 160000       buffer       2 one call (id)  0.522     25.667    49.2
+    1 modified 160000         disc       1    per animal  0.063     25.667   407.4
+    1 modified 160000         disc       1 one call (id)  0.052     25.667   493.6
+    1 modified 160000         disc       2    per animal  0.040     25.667   641.7
+    1 modified 160000         disc       2 one call (id)  0.032     25.667   802.1
+    2    devel  40000       buffer       1    per animal  7.207      7.207     1.0
+    2 modified  40000       buffer       1    per animal  0.225      7.207    32.0
+    2 modified  40000       buffer       1 one call (id)  0.217      7.207    33.2
+    2 modified  40000       buffer       2 one call (id)  0.194      7.207    37.1
+    2 modified  40000       buffer       2    per animal  0.232      7.207    31.1
+    2 modified  40000         disc       1    per animal  0.028      7.207   257.4
+    2 modified  40000         disc       1 one call (id)  0.020      7.207   360.4
+    2 modified  40000         disc       2 one call (id)  0.013      7.207   554.4
+    2 modified  40000         disc       2    per animal  0.021      7.207   343.2
+    4    devel  10000       buffer       1    per animal  2.337      2.337     1.0
+    4 modified  10000       buffer       1    per animal  0.132      2.337    17.7
+    4 modified  10000       buffer       1 one call (id)  0.109      2.337    21.4
+    4 modified  10000       buffer       2    per animal  0.115      2.337    20.3
+    4 modified  10000       buffer       2 one call (id)  0.103      2.337    22.7
+    4 modified  10000         disc       1    per animal  0.018      2.337   129.8
+    4 modified  10000         disc       1 one call (id)  0.011      2.337   212.5
+    4 modified  10000         disc       2    per animal  0.014      2.337   166.9
+    4 modified  10000         disc       2 one call (id)  0.007      2.337   333.9
+
+== L: devel vs modified 
+  grid                  compare  nnz_a  nnz_b only_a only_b         max_abs     max_abs_all identical_pattern pass
+ grid4 devel vs modified buffer  15097  15097      0      0 4.440892099e-16 4.440892099e-16              TRUE TRUE
+ grid4   devel vs modified disc  15097  15112      0     15 5.619866422e-05 1.502581954e-04             FALSE   NA
+ grid2 devel vs modified buffer  42657  42657      0      0 9.159339953e-16 9.159339953e-16              TRUE TRUE
+ grid2   devel vs modified disc  42657  42725      0     68 5.986415865e-05 1.700109246e-04             FALSE   NA
+ grid1 devel vs modified buffer 138651 138651      0      0 3.145053662e-15 3.145053662e-15              TRUE TRUE
+ grid1   devel vs modified disc 138651 138928      0    277 2.194758299e-04 1.290811194e-03             FALSE   NA
+
+== -2 log-likelihood (summed over animals) 
+ grid par  version          L_from                            how threads        n2ll  abs_diff rel_diff pass
+    1  p1    devel    devel buffer           ctmc_n2ll per animal       1 9247.570285  0.00e+00 0.00e+00 TRUE
+    1  p1 modified    devel buffer     ctmc_n2ll_joint per animal       1 9247.570285 -1.82e-12 1.97e-16 TRUE
+    1  p1 modified modified buffer     ctmc_n2ll_joint per animal       1 9247.570285 -3.64e-12 3.93e-16 TRUE
+    1  p1 modified modified buffer ctmc_n2ll_joint one joint call       1 9247.570285 -3.64e-12 3.93e-16 TRUE
+    1  p1 modified modified buffer ctmc_n2ll_joint one joint call       2 9247.570285 -3.64e-12 3.93e-16 TRUE
+    1  p1 modified   modified disc     ctmc_n2ll_joint per animal       1 9247.580084  9.80e-03 1.06e-06   NA
+    1  p1 modified   modified disc ctmc_n2ll_joint one joint call       1 9247.580084  9.80e-03 1.06e-06   NA
+    1  p1 modified   modified disc ctmc_n2ll_joint one joint call       2 9247.580084  9.80e-03 1.06e-06   NA
+    1  p2    devel    devel buffer           ctmc_n2ll per animal       1 9536.694502  0.00e+00 0.00e+00 TRUE
+    1  p2 modified    devel buffer     ctmc_n2ll_joint per animal       1 9536.694502  0.00e+00 0.00e+00 TRUE
+    1  p2 modified modified buffer ctmc_n2ll_joint one joint call       2 9536.694502  3.64e-12 3.81e-16 TRUE
+    1  p2 modified modified buffer     ctmc_n2ll_joint per animal       1 9536.694502  3.64e-12 3.81e-16 TRUE
+    1  p2 modified modified buffer ctmc_n2ll_joint one joint call       1 9536.694502  3.64e-12 3.81e-16 TRUE
+    1  p2 modified   modified disc     ctmc_n2ll_joint per animal       1 9536.704330  9.83e-03 1.03e-06   NA
+    1  p2 modified   modified disc ctmc_n2ll_joint one joint call       1 9536.704330  9.83e-03 1.03e-06   NA
+    1  p2 modified   modified disc ctmc_n2ll_joint one joint call       2 9536.704330  9.83e-03 1.03e-06   NA
+    1  p3    devel    devel buffer           ctmc_n2ll per animal       1 9698.776293  0.00e+00 0.00e+00 TRUE
+    1  p3 modified    devel buffer     ctmc_n2ll_joint per animal       1 9698.776293  1.82e-12 1.88e-16 TRUE
+    1  p3 modified modified buffer     ctmc_n2ll_joint per animal       1 9698.776293  1.82e-12 1.88e-16 TRUE
+    1  p3 modified modified buffer ctmc_n2ll_joint one joint call       1 9698.776293  1.82e-12 1.88e-16 TRUE
+    1  p3 modified modified buffer ctmc_n2ll_joint one joint call       2 9698.776293  1.82e-12 1.88e-16 TRUE
+    1  p3 modified   modified disc     ctmc_n2ll_joint per animal       1 9698.783380  7.09e-03 7.31e-07   NA
+    1  p3 modified   modified disc ctmc_n2ll_joint one joint call       1 9698.783380  7.09e-03 7.31e-07   NA
+    1  p3 modified   modified disc ctmc_n2ll_joint one joint call       2 9698.783380  7.09e-03 7.31e-07   NA
+    2  p1    devel    devel buffer           ctmc_n2ll per animal       1 6242.904784  0.00e+00 0.00e+00 TRUE
+    2  p1 modified    devel buffer     ctmc_n2ll_joint per animal       1 6242.904784 -9.09e-13 1.46e-16 TRUE
+    2  p1 modified modified buffer     ctmc_n2ll_joint per animal       1 6242.904784  9.09e-13 1.46e-16 TRUE
+    2  p1 modified modified buffer ctmc_n2ll_joint one joint call       1 6242.904784  9.09e-13 1.46e-16 TRUE
+    2  p1 modified modified buffer ctmc_n2ll_joint one joint call       2 6242.904784  9.09e-13 1.46e-16 TRUE
+    2  p1 modified   modified disc ctmc_n2ll_joint one joint call       1 6242.907920  3.14e-03 5.02e-07   NA
+    2  p1 modified   modified disc     ctmc_n2ll_joint per animal       1 6242.907920  3.14e-03 5.02e-07   NA
+    2  p1 modified   modified disc ctmc_n2ll_joint one joint call       2 6242.907920  3.14e-03 5.02e-07   NA
+    2  p2    devel    devel buffer           ctmc_n2ll per animal       1 6437.509325  0.00e+00 0.00e+00 TRUE
+    2  p2 modified    devel buffer     ctmc_n2ll_joint per animal       1 6437.509325  0.00e+00 0.00e+00 TRUE
+    2  p2 modified modified buffer     ctmc_n2ll_joint per animal       1 6437.509325  1.82e-12 2.83e-16 TRUE
+    2  p2 modified modified buffer ctmc_n2ll_joint one joint call       1 6437.509325  1.82e-12 2.83e-16 TRUE
+    2  p2 modified modified buffer ctmc_n2ll_joint one joint call       2 6437.509325  1.82e-12 2.83e-16 TRUE
+    2  p2 modified   modified disc     ctmc_n2ll_joint per animal       1 6437.512463  3.14e-03 4.88e-07   NA
+    2  p2 modified   modified disc ctmc_n2ll_joint one joint call       1 6437.512463  3.14e-03 4.88e-07   NA
+    2  p2 modified   modified disc ctmc_n2ll_joint one joint call       2 6437.512463  3.14e-03 4.88e-07   NA
+    2  p3    devel    devel buffer           ctmc_n2ll per animal       1 6459.400602  0.00e+00 0.00e+00 TRUE
+    2  p3 modified    devel buffer     ctmc_n2ll_joint per animal       1 6459.400602 -2.73e-12 4.22e-16 TRUE
+    2  p3 modified modified buffer ctmc_n2ll_joint one joint call       1 6459.400602 -9.09e-13 1.41e-16 TRUE
+    2  p3 modified modified buffer ctmc_n2ll_joint one joint call       2 6459.400602 -9.09e-13 1.41e-16 TRUE
+    2  p3 modified modified buffer     ctmc_n2ll_joint per animal       1 6459.400602 -9.09e-13 1.41e-16 TRUE
+    2  p3 modified   modified disc     ctmc_n2ll_joint per animal       1 6459.403526  2.92e-03 4.53e-07   NA
+    2  p3 modified   modified disc ctmc_n2ll_joint one joint call       2 6459.403526  2.92e-03 4.53e-07   NA
+    2  p3 modified   modified disc ctmc_n2ll_joint one joint call       1 6459.403526  2.92e-03 4.53e-07   NA
+    4  p1    devel    devel buffer           ctmc_n2ll per animal       1 3862.044093  0.00e+00 0.00e+00 TRUE
+    4  p1 modified    devel buffer     ctmc_n2ll_joint per animal       1 3862.044093  0.00e+00 0.00e+00 TRUE
+    4  p1 modified modified buffer ctmc_n2ll_joint one joint call       2 3862.044093  0.00e+00 0.00e+00 TRUE
+    4  p1 modified modified buffer     ctmc_n2ll_joint per animal       1 3862.044093  0.00e+00 0.00e+00 TRUE
+    4  p1 modified modified buffer ctmc_n2ll_joint one joint call       1 3862.044093  0.00e+00 0.00e+00 TRUE
+    4  p1 modified   modified disc ctmc_n2ll_joint one joint call       2 3862.044781  6.89e-04 1.78e-07   NA
+    4  p1 modified   modified disc     ctmc_n2ll_joint per animal       1 3862.044781  6.89e-04 1.78e-07   NA
+    4  p1 modified   modified disc ctmc_n2ll_joint one joint call       1 3862.044781  6.89e-04 1.78e-07   NA
+    4  p2    devel    devel buffer           ctmc_n2ll per animal       1 3975.059708  0.00e+00 0.00e+00 TRUE
+    4  p2 modified    devel buffer     ctmc_n2ll_joint per animal       1 3975.059708 -4.55e-13 1.14e-16 TRUE
+    4  p2 modified modified buffer     ctmc_n2ll_joint per animal       1 3975.059708 -9.09e-13 2.29e-16 TRUE
+    4  p2 modified modified buffer ctmc_n2ll_joint one joint call       1 3975.059708 -9.09e-13 2.29e-16 TRUE
+    4  p2 modified modified buffer ctmc_n2ll_joint one joint call       2 3975.059708 -9.09e-13 2.29e-16 TRUE
+    4  p2 modified   modified disc     ctmc_n2ll_joint per animal       1 3975.060396  6.88e-04 1.73e-07   NA
+    4  p2 modified   modified disc ctmc_n2ll_joint one joint call       1 3975.060396  6.88e-04 1.73e-07   NA
+    4  p2 modified   modified disc ctmc_n2ll_joint one joint call       2 3975.060396  6.88e-04 1.73e-07   NA
+    4  p3    devel    devel buffer           ctmc_n2ll per animal       1 3739.691936  0.00e+00 0.00e+00 TRUE
+    4  p3 modified    devel buffer     ctmc_n2ll_joint per animal       1 3739.691936  1.36e-12 3.65e-16 TRUE
+    4  p3 modified modified buffer ctmc_n2ll_joint one joint call       2 3739.691936  9.09e-13 2.43e-16 TRUE
+    4  p3 modified modified buffer     ctmc_n2ll_joint per animal       1 3739.691936  9.09e-13 2.43e-16 TRUE
+    4  p3 modified modified buffer ctmc_n2ll_joint one joint call       1 3739.691936  9.09e-13 2.43e-16 TRUE
+    4  p3 modified   modified disc     ctmc_n2ll_joint per animal       1 3739.692619  6.83e-04 1.83e-07   NA
+    4  p3 modified   modified disc ctmc_n2ll_joint one joint call       1 3739.692619  6.83e-04 1.83e-07   NA
+    4  p3 modified   modified disc ctmc_n2ll_joint one joint call       2 3739.692619  6.83e-04 1.83e-07   NA
+
+== Likelihood time (s, one evaluation, all animals) 
+ grid  cells par  version          L_from                            how threads   time speedup
+    1 160000  p1    devel    devel buffer           ctmc_n2ll per animal       1  8.973     1.0
+    1 160000  p1 modified modified buffer     ctmc_n2ll_joint per animal       1  0.574    15.6
+    1 160000  p1 modified   modified disc     ctmc_n2ll_joint per animal       1  0.534    16.8
+    1 160000  p1 modified   modified disc ctmc_n2ll_joint one joint call       1  0.160    56.1
+    1 160000  p1 modified modified buffer ctmc_n2ll_joint one joint call       1  0.169    53.1
+    1 160000  p1 modified modified buffer ctmc_n2ll_joint one joint call       2  0.155    57.9
+    1 160000  p1 modified   modified disc ctmc_n2ll_joint one joint call       2  0.146    61.5
+    1 160000  p1 modified    devel buffer     ctmc_n2ll_joint per animal       1  0.532    16.9
+    1 160000  p2    devel    devel buffer           ctmc_n2ll per animal       1 10.479     1.0
+    1 160000  p2 modified modified buffer ctmc_n2ll_joint one joint call       2  0.171    61.3
+    1 160000  p2 modified modified buffer     ctmc_n2ll_joint per animal       1  0.571    18.4
+    1 160000  p2 modified modified buffer ctmc_n2ll_joint one joint call       1  0.204    51.4
+    1 160000  p2 modified    devel buffer     ctmc_n2ll_joint per animal       1  0.580    18.1
+    1 160000  p2 modified   modified disc     ctmc_n2ll_joint per animal       1  0.575    18.2
+    1 160000  p2 modified   modified disc ctmc_n2ll_joint one joint call       1  0.209    50.1
+    1 160000  p2 modified   modified disc ctmc_n2ll_joint one joint call       2  0.175    59.9
+    1 160000  p3    devel    devel buffer           ctmc_n2ll per animal       1 18.855     1.0
+    1 160000  p3 modified modified buffer     ctmc_n2ll_joint per animal       1  3.059     6.2
+    1 160000  p3 modified modified buffer ctmc_n2ll_joint one joint call       1  2.647     7.1
+    1 160000  p3 modified modified buffer ctmc_n2ll_joint one joint call       2  1.620    11.6
+    1 160000  p3 modified   modified disc     ctmc_n2ll_joint per animal       1  3.085     6.1
+    1 160000  p3 modified   modified disc ctmc_n2ll_joint one joint call       1  2.705     7.0
+    1 160000  p3 modified   modified disc ctmc_n2ll_joint one joint call       2  1.739    10.8
+    1 160000  p3 modified    devel buffer     ctmc_n2ll_joint per animal       1  3.101     6.1
+    2  40000  p1    devel    devel buffer           ctmc_n2ll per animal       1  2.413     1.0
+    2  40000  p1 modified modified buffer     ctmc_n2ll_joint per animal       1  0.132    18.3
+    2  40000  p1 modified   modified disc ctmc_n2ll_joint one joint call       1  0.038    63.5
+    2  40000  p1 modified modified buffer ctmc_n2ll_joint one joint call       1  0.037    65.2
+    2  40000  p1 modified modified buffer ctmc_n2ll_joint one joint call       2  0.034    71.0
+    2  40000  p1 modified   modified disc     ctmc_n2ll_joint per animal       1  0.128    18.9
+    2  40000  p1 modified   modified disc ctmc_n2ll_joint one joint call       2  0.033    73.1
+    2  40000  p1 modified    devel buffer     ctmc_n2ll_joint per animal       1  0.124    19.5
+    2  40000  p2    devel    devel buffer           ctmc_n2ll per animal       1  2.658     1.0
+    2  40000  p2 modified modified buffer     ctmc_n2ll_joint per animal       1  0.130    20.4
+    2  40000  p2 modified modified buffer ctmc_n2ll_joint one joint call       1  0.045    59.1
+    2  40000  p2 modified modified buffer ctmc_n2ll_joint one joint call       2  0.037    71.8
+    2  40000  p2 modified   modified disc     ctmc_n2ll_joint per animal       1  0.132    20.1
+    2  40000  p2 modified   modified disc ctmc_n2ll_joint one joint call       1  0.043    61.8
+    2  40000  p2 modified   modified disc ctmc_n2ll_joint one joint call       2  0.037    71.8
+    2  40000  p2 modified    devel buffer     ctmc_n2ll_joint per animal       1  0.133    20.0
+    2  40000  p3    devel    devel buffer           ctmc_n2ll per animal       1  4.003     1.0
+    2  40000  p3 modified modified buffer ctmc_n2ll_joint one joint call       1  0.195    20.5
+    2  40000  p3 modified modified buffer ctmc_n2ll_joint one joint call       2  0.120    33.4
+    2  40000  p3 modified   modified disc     ctmc_n2ll_joint per animal       1  0.285    14.0
+    2  40000  p3 modified modified buffer     ctmc_n2ll_joint per animal       1  0.282    14.2
+    2  40000  p3 modified   modified disc ctmc_n2ll_joint one joint call       2  0.124    32.3
+    2  40000  p3 modified    devel buffer     ctmc_n2ll_joint per animal       1  0.283    14.1
+    2  40000  p3 modified   modified disc ctmc_n2ll_joint one joint call       1  0.195    20.5
+    4  10000  p1    devel    devel buffer           ctmc_n2ll per animal       1  0.646     1.0
+    4  10000  p1 modified   modified disc ctmc_n2ll_joint one joint call       2  0.009    71.8
+    4  10000  p1 modified    devel buffer     ctmc_n2ll_joint per animal       1  0.029    22.3
+    4  10000  p1 modified modified buffer ctmc_n2ll_joint one joint call       2  0.009    71.8
+    4  10000  p1 modified   modified disc     ctmc_n2ll_joint per animal       1  0.029    22.3
+    4  10000  p1 modified modified buffer     ctmc_n2ll_joint per animal       1  0.030    21.5
+    4  10000  p1 modified modified buffer ctmc_n2ll_joint one joint call       1  0.010    64.6
+    4  10000  p1 modified   modified disc ctmc_n2ll_joint one joint call       1  0.009    71.8
+    4  10000  p2    devel    devel buffer           ctmc_n2ll per animal       1  0.713     1.0
+    4  10000  p2 modified modified buffer     ctmc_n2ll_joint per animal       1  0.031    23.0
+    4  10000  p2 modified modified buffer ctmc_n2ll_joint one joint call       1  0.011    64.8
+    4  10000  p2 modified   modified disc     ctmc_n2ll_joint per animal       1  0.033    21.6
+    4  10000  p2 modified   modified disc ctmc_n2ll_joint one joint call       1  0.012    59.4
+    4  10000  p2 modified   modified disc ctmc_n2ll_joint one joint call       2  0.010    71.3
+    4  10000  p2 modified modified buffer ctmc_n2ll_joint one joint call       2  0.010    71.3
+    4  10000  p2 modified    devel buffer     ctmc_n2ll_joint per animal       1  0.033    21.6
+    4  10000  p3    devel    devel buffer           ctmc_n2ll per animal       1  0.982     1.0
+    4  10000  p3 modified    devel buffer     ctmc_n2ll_joint per animal       1  0.048    20.5
+    4  10000  p3 modified modified buffer ctmc_n2ll_joint one joint call       2  0.018    54.6
+    4  10000  p3 modified modified buffer     ctmc_n2ll_joint per animal       1  0.047    20.9
+    4  10000  p3 modified modified buffer ctmc_n2ll_joint one joint call       1  0.026    37.8
+    4  10000  p3 modified   modified disc     ctmc_n2ll_joint per animal       1  0.048    20.5
+    4  10000  p3 modified   modified disc ctmc_n2ll_joint one joint call       1  0.027    36.4
+    4  10000  p3 modified   modified disc ctmc_n2ll_joint one joint call       2  0.017    57.8
+
+== Full fit, animal 1, coarsest grid (nlminb, no Hessian) 
+  version grid  time        n2ll convergence                                          par
+    devel    4 15.16 897.3738143           0 -4.5803591 -4.7780707 0.14795537 -0.71929343
+ modified    4  0.71 897.3738143           0 -4.5803591 -4.7780707 0.14795538 -0.71929342
+
+CHECK  L identical (devel vs modified buffer, tol 1e-10): PASS 
+CHECK  -2ll equal (devel vs modified, buffer / devel L, rel tol 1e-08): PASS  (max rel diff 4.22e-16) 
+CHECK  joint call = sum of per-animal (modified): max abs diff 0 
+Results and write-up (walkbench_report.md) written to /Users/brett.mcclintock/My Documents/Current Projects/walk/simulations/results 
