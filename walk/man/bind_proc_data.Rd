@@ -26,9 +26,11 @@ that \code{\link{make_walk_data}} and \code{\link{fit_ctmc}} will treat as a joi
 multi-individual data set.
 }
 \details{
-All inputs must have been built on the same \code{cell_data} and, if \code{clipRast} was used,
-the same clipping region (identical \verb{$clip}; use one \code{terra::ext()} for every call rather than
-\code{clipRast = TRUE}, which gives each call its own region). All inputs must use the same
+All inputs must have been built on the same \code{cell_data}. Inputs made with different
+\code{clipRast} regions (e.g. \code{clipRast = TRUE} or a buffer distance per individual) are combined on
+the smallest window of \code{cell_data} that contains all of them (the bounding box of the
+individual windows, so the model domain is the same as if all individuals had been processed
+in one call with that window); if any input is unclipped the result is unclipped. All inputs must use the same
 \code{time_unit} and the same kind of time stamps (all POSIXct, or all numeric in the same units).
 Segments are renumbered so they stay distinct, and an individual may not appear
 in more than one input (use \code{max_gap}, not separate inputs, to split one animal's track).

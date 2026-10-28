@@ -9,26 +9,32 @@ make_walk_data(
   cell_data,
   grad = NULL,
   rast_mask = NULL,
-  get_subset_idx = TRUE,
   directions = "rook",
   mask_zero = TRUE,
-  crop_to_data = NULL,
-  debug = 0,
-  ...
+  add_diff = TRUE,
+  exclude = NULL,
+  vmax = NULL,
+  debug = 0
 )
 }
 \arguments{
 \item{proc_data}{A sparse matrix with rows corresponding to time steps and columns corresponding to cells.
 The entries are probabilities that the animal is located in the corresponding cell and time.}
 
-\item{cell_data}{A \code{SpatRaster} object from the \code{terra} package.}
+\item{cell_data}{A \code{SpatRaster} object from the \code{terra} package. If \code{proc_data} was made with
+\code{clipRast} (it has a \code{clip} element), this can be the raster given to \code{proc_telem()} /
+\code{proc_Langevin()} or the clipped window of it; the full raster is cropped to the window.
+The model domain (the cells of the CTMC, and so of the utilization distribution) is the
+\code{clipRast} window, or all of \code{cell_data} without \code{clipRast}; to restrict it, use \code{clipRast}
+in \code{proc_telem()}/\code{proc_Langevin()}.
+Memory use here grows with the number of cells in the domain and is usually the binding
+constraint for large rasters (much more than the size of \code{proc_data$L}).}
 
 \item{grad}{A character vector of names of \code{cell_data} layers for which gradient covariates will be constructed.}
 
 \item{rast_mask}{Raster mask for inaccessible cells when \code{cell_data} is of type \code{SpatRaster} from the \code{terra} package. This is ignored
-if \code{cell_data} is an \code{POLYGON} data frame from the \code{sf} package.}
-
-\item{get_subset_idx}{Logical. Should a rate matrix subsetting approximation be used to increase computational speed.}
+if \code{cell_data} is an \code{POLYGON} data frame from the \code{sf} package. With clipped \code{proc_data}
+it may be on the full or the clipped grid, like \code{cell_data}.}
 
 \item{directions}{Neighborhood structure, one of \code{"rook"} or \code{"queen"}.}
 
@@ -37,14 +43,42 @@ well as cells where it is \code{NA}. A mask built with
 \code{terra::rasterize(land, r, field = 0, background = 1)} contains no \code{NA}s, so with
 \code{mask_zero = FALSE} it would drop nothing.}
 
-\item{crop_to_data}{Optional buffer distance (map units). If supplied, \code{cell_data} (and
-\code{rast_mask}) are cropped to the extent of the cells with non-zero observation likelihood plus
-this buffer before the rate-matrix data are built.}
+\item{add_diff}{Logical (default \code{TRUE}). Add difference covariates \verb{d_<layer>} (value in
+the destination cell minus value in the origin cell) to \code{q_m} for every numeric layer of
+\code{cell_data}, so movement formulas such as \code{~ d_depth} can be used directly. Existing columns
+(e.g. a layer that is itself called \code{d_depth}) are not overwritten. Other covariates can be
+added to \code{q_r}/\code{q_m} by hand afterwards.}
+
+\item{exclude}{Optional observations to exclude: rows of \code{proc_data$times} (= its column
+\code{obs}) or a logical vector with one value per row. They are labelled \code{"user"} in
+\code{times$excluded}. See \code{\link{exclude_obs}}.}
+
+\item{vmax}{Optional maximum plausible speed, in map units per \code{time_unit} of the data (e.g.
+m/h). Observations that would need a faster movement from their neighbours (allowing for
+location error) are excluded and labelled \code{"speed"}. See \code{\link{exclude_obs}} for the
+filter.}
 
 \item{debug}{Debugging level: 1-3 mainly for package developers.}
-
-\item{...}{Ignored arguments.}
 }
 \description{
 Produce design data for use in fitting MMPP movement models
+}
+\details{
+Cells that are \code{NA} in the first layer of \code{cell_data} are inadmissible (as in
+\code{proc_telem()}/\code{proc_Langevin()}) and are dropped like masked cells. In the output,
+\code{q_r$cell}, \code{q_m$cell} and \code{q_m$from_cell} are cell numbers of the \code{cell_data} raster supplied
+here (also stored, first layer only, in \code{cell_data}), even when \code{proc_data} was clipped with
+\code{clipRast}, so \code{get_lim_ud()} and \code{predict_ctmc()} results can be
+mapped with e.g. \verb{u <- terra::rast(cell_data); u[ud$cell] <- ud$ud}. \code{cellx} is the index of
+the cell among the retained cells (the columns of \code{L}).
+
+\strong{Excluded observations.} \code{times$excluded} gives, for every observation, why it is excluded
+(\code{NA} if it is not): \code{"no_cells"} if its likelihood is zero in every cell of the model domain
+(e.g. its whole error neighbourhood is masked; these are excluded automatically, with a
+warning), \code{"user"} for \code{exclude}, and \code{"speed"} for the \code{vmax} filter, applied in that order.
+An excluded observation keeps its time but its row of \code{L} is empty. In
+\code{\link{fit_ctmc}} this is exactly equivalent to deleting it and measuring the next time
+step from the previous retained observation; \code{\link{predict_ctmc}} still predicts its
+location from the movement model. All exclusions work the same way, whatever their
+reason. Use \code{\link{exclude_obs}} to exclude more observations later (e.g. \code{fit$zero_obs}).
 }

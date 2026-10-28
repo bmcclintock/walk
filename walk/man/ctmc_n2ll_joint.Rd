@@ -30,10 +30,10 @@ per-segment log-likelihoods, each segment starting from \code{delta}.
 The forward recursion only touches cells that can carry probability
 (the support of the observation likelihood, expanded by the uniformisation
 steps), which is exact, and segments are evaluated in parallel with OpenMP using
-\code{data_list$nthreads} threads. If \code{data_list$skip_zero} is \code{TRUE}, observations
-whose error support does not overlap the predicted distribution are treated as
-missing instead of returning \code{Inf}; their indices are returned in
-\code{attr(, "zero_obs")}.
+\code{data_list$nthreads} threads. A segment containing an observation whose error support
+does not overlap the predicted distribution has -2 log-likelihood \code{Inf}; the first such
+observation of each segment is returned in \code{attr(, "zero_obs")} (rows of
+\code{walk_data$times}), so it can be removed with \code{\link{exclude_obs}}.
 }
 \author{
 Devin S. Johnson, Brett T. McClintock

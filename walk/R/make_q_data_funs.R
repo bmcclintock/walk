@@ -4,7 +4,7 @@
 ###-----------------------------------------------------------------------------
 #' @importFrom terra compareGeom xFromCell yFromCell adjacent ncell values
 #' @import dplyr
-make_q_data_rast <- function(cell_data, grad=NULL, rast_mask=NULL, directions="rook", ...){
+make_q_data_rast <- function(cell_data, grad=NULL, rast_mask=NULL, directions="rook", grad_rast=NULL, ...){
   
   mask <- cell <- from_cell <- NULL
   
@@ -27,6 +27,13 @@ make_q_data_rast <- function(cell_data, grad=NULL, rast_mask=NULL, directions="r
     q_r_data$mask <- terra::values(rast_mask, dataframe=TRUE)[,1]
     q_r_data <- q_r_data %>% dplyr::filter(!is.na(mask)) %>% dplyr::select(-mask)
   } 
+  # NA cells of the first layer are inadmissible in proc_telem()/proc_Langevin(); drop them here too
+  na1 <- is.na(q_r_data[[names(cell_data)[1]]])
+  if(any(na1)) q_r_data <- q_r_data[!na1, , drop=FALSE]
+  lyr <- names(cell_data)
+  na_l <- lyr[vapply(lyr, function(z) anyNA(q_r_data[[z]]), logical(1))]
+  if(length(na_l)) warning("Layer(s) ", paste(na_l, collapse=", "), " of 'cell_data' have NA values in cells that are ",
+                           "not masked; model formulas using them will fail. Mask those cells with 'rast_mask'.", call.=FALSE)
   
   q_r_data <- q_r_data %>% mutate(
     cellx =  as.numeric(factor(cell))
@@ -53,9 +60,17 @@ make_q_data_rast <- function(cell_data, grad=NULL, rast_mask=NULL, directions="r
   if(!is.null(grad)){
     grad_df <- NULL
     for(i in 1:length(grad)){
-      cov_tmp <- cell_data[[grad[i]]]
-      grad_tmp <- get_grad(cov_tmp) |> terra::values()
-      grad_tmp <- grad_tmp[q_m_data$from_cell,]
+      # 'grad_rast' (optional) is the full raster when 'cell_data' is a window of it
+      # (clipRast); gradients are computed there so that window-edge cells get
+      # the same values as without the window
+      if(is.null(grad_rast)){
+        grad_tmp <- get_grad(cell_data[[grad[i]]]) |> terra::values()
+        grad_tmp <- grad_tmp[q_m_data$from_cell,]
+      } else {
+        grad_tmp <- get_grad(grad_rast[[grad[i]]]) |> terra::values()
+        gc <- terra::cellFromXY(grad_rast, cbind(q_m_data$from_x, q_m_data$from_y))
+        grad_tmp <- grad_tmp[gc,]
+      }
       grad_tmp <- grad_tmp[,"dx"]*q_m_data$w_x + grad_tmp[,"dy"]*q_m_data$w_y
       grad_tmp <- ifelse(!is.finite(grad_tmp), 0, grad_tmp)
       grad_df <- cbind(grad_df, grad_tmp)

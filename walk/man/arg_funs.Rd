@@ -19,10 +19,12 @@ ctmc_control(
 )
 }
 \arguments{
-\item{form}{The form of the rate matrix entries. Can be one of: \code{"mult"} for residency times movement, i.e., q_\{ij\} = q_r(i) * pi_m(i,j), \code{"add"} for a model of
-the form q_\{ij\} = q_r(i) + pi_m(i,j), and \code{"sde"} for a Langevin diffusion approximation. The \code{"sde"} is very similar to the additive model.}
+\item{form}{The form of the rate matrix entries. Can be one of: \code{"mult"} for residency times movement, i.e., q_\{ij\} = q_r(i) * pi_m(i,j),
+and \code{"sde"} for a Langevin diffusion approximation (similar to an additive model q_\{ij\} = q_r(i) + pi_m(i,j),
+which is not implemented).}
 
-\item{link}{A link funtion for the residency or movement model. One of \code{"soft_plus"} or \code{"log"}.}
+\item{link}{A link funtion for the residency or movement model. One of \code{"soft_plus"} or \code{"log"},
+or \code{"logit"} (residency model only; requires \verb{U > L >= 0}).}
 
 \item{a}{Scale parameter for the \code{"soft_plus"} link function. Ignored for \code{link="log"}. The \code{a} parameter determines the approximation to
 a hard plus function, i.e., as \code{a} becomes large the soft plus function converges to \code{g^{-1}(x) = max(0,x)}. For this specification, \code{a} must be greater than or equal to 1.}

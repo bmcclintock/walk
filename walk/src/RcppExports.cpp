@@ -110,8 +110,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // ctmc_n2ll_joint_arma
-Rcpp::List ctmc_n2ll_joint_arma(const arma::sp_mat& L, const arma::vec& dt, const arma::uvec& seg_start, int ns, const arma::umat& from_to, const arma::vec& Xb_q_r, const arma::vec& Xb_q_m, double p, const arma::rowvec& delta, const arma::vec& hij, double eq_prec, int link_r, double a_r, double l_r, double u_r, int link_m, double a_m, int form, double k, bool norm, double clip, int nthreads, double prune, bool skip_zero);
-RcppExport SEXP _walk_ctmc_n2ll_joint_arma(SEXP LSEXP, SEXP dtSEXP, SEXP seg_startSEXP, SEXP nsSEXP, SEXP from_toSEXP, SEXP Xb_q_rSEXP, SEXP Xb_q_mSEXP, SEXP pSEXP, SEXP deltaSEXP, SEXP hijSEXP, SEXP eq_precSEXP, SEXP link_rSEXP, SEXP a_rSEXP, SEXP l_rSEXP, SEXP u_rSEXP, SEXP link_mSEXP, SEXP a_mSEXP, SEXP formSEXP, SEXP kSEXP, SEXP normSEXP, SEXP clipSEXP, SEXP nthreadsSEXP, SEXP pruneSEXP, SEXP skip_zeroSEXP) {
+Rcpp::List ctmc_n2ll_joint_arma(const arma::sp_mat& L, const arma::vec& dt, const arma::uvec& seg_start, int ns, const arma::umat& from_to, const arma::vec& Xb_q_r, const arma::vec& Xb_q_m, double p, const arma::rowvec& delta, const arma::vec& hij, double eq_prec, int link_r, double a_r, double l_r, double u_r, int link_m, double a_m, int form, double k, bool norm, double clip, int nthreads, double prune);
+RcppExport SEXP _walk_ctmc_n2ll_joint_arma(SEXP LSEXP, SEXP dtSEXP, SEXP seg_startSEXP, SEXP nsSEXP, SEXP from_toSEXP, SEXP Xb_q_rSEXP, SEXP Xb_q_mSEXP, SEXP pSEXP, SEXP deltaSEXP, SEXP hijSEXP, SEXP eq_precSEXP, SEXP link_rSEXP, SEXP a_rSEXP, SEXP l_rSEXP, SEXP u_rSEXP, SEXP link_mSEXP, SEXP a_mSEXP, SEXP formSEXP, SEXP kSEXP, SEXP normSEXP, SEXP clipSEXP, SEXP nthreadsSEXP, SEXP pruneSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -138,8 +138,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type clip(clipSEXP);
     Rcpp::traits::input_parameter< int >::type nthreads(nthreadsSEXP);
     Rcpp::traits::input_parameter< double >::type prune(pruneSEXP);
-    Rcpp::traits::input_parameter< bool >::type skip_zero(skip_zeroSEXP);
-    rcpp_result_gen = Rcpp::wrap(ctmc_n2ll_joint_arma(L, dt, seg_start, ns, from_to, Xb_q_r, Xb_q_m, p, delta, hij, eq_prec, link_r, a_r, l_r, u_r, link_m, a_m, form, k, norm, clip, nthreads, prune, skip_zero));
+    rcpp_result_gen = Rcpp::wrap(ctmc_n2ll_joint_arma(L, dt, seg_start, ns, from_to, Xb_q_r, Xb_q_m, p, delta, hij, eq_prec, link_r, a_r, l_r, u_r, link_m, a_m, form, k, norm, clip, nthreads, prune));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -181,6 +180,52 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< bool >::type norm(normSEXP);
     Rcpp::traits::input_parameter< double >::type clip(clipSEXP);
     rcpp_result_gen = Rcpp::wrap(ctmc_predict_arma(L, dt, ns, from_to, Xb_q_r, Xb_q_m, p, delta, hij, eq_prec, trunc_tol, link_r, a_r, l_r, u_r, link_m, a_m, form, k, norm, clip));
+    return rcpp_result_gen;
+END_RCPP
+}
+// row_support_bbox
+NumericMatrix row_support_bbox(const IntegerVector& Lp, const IntegerVector& Li, const NumericVector& Lx, int nrow, const NumericVector& x, const NumericVector& y);
+RcppExport SEXP _walk_row_support_bbox(SEXP LpSEXP, SEXP LiSEXP, SEXP LxSEXP, SEXP nrowSEXP, SEXP xSEXP, SEXP ySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const IntegerVector& >::type Lp(LpSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type Li(LiSEXP);
+    Rcpp::traits::input_parameter< const NumericVector& >::type Lx(LxSEXP);
+    Rcpp::traits::input_parameter< int >::type nrow(nrowSEXP);
+    Rcpp::traits::input_parameter< const NumericVector& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< const NumericVector& >::type y(ySEXP);
+    rcpp_result_gen = Rcpp::wrap(row_support_bbox(Lp, Li, Lx, nrow, x, y));
+    return rcpp_result_gen;
+END_RCPP
+}
+// speed_filter_cpp
+IntegerVector speed_filter_cpp(const NumericMatrix& bb, const NumericVector& tt, const IntegerVector& seg, const LogicalVector& keep, double vmax, double buffer);
+RcppExport SEXP _walk_speed_filter_cpp(SEXP bbSEXP, SEXP ttSEXP, SEXP segSEXP, SEXP keepSEXP, SEXP vmaxSEXP, SEXP bufferSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const NumericMatrix& >::type bb(bbSEXP);
+    Rcpp::traits::input_parameter< const NumericVector& >::type tt(ttSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type seg(segSEXP);
+    Rcpp::traits::input_parameter< const LogicalVector& >::type keep(keepSEXP);
+    Rcpp::traits::input_parameter< double >::type vmax(vmaxSEXP);
+    Rcpp::traits::input_parameter< double >::type buffer(bufferSEXP);
+    rcpp_result_gen = Rcpp::wrap(speed_filter_cpp(bb, tt, seg, keep, vmax, buffer));
+    return rcpp_result_gen;
+END_RCPP
+}
+// drop_rows_csc
+List drop_rows_csc(const IntegerVector& Lp, const IntegerVector& Li, const NumericVector& Lx, const LogicalVector& drop);
+RcppExport SEXP _walk_drop_rows_csc(SEXP LpSEXP, SEXP LiSEXP, SEXP LxSEXP, SEXP dropSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const IntegerVector& >::type Lp(LpSEXP);
+    Rcpp::traits::input_parameter< const IntegerVector& >::type Li(LiSEXP);
+    Rcpp::traits::input_parameter< const NumericVector& >::type Lx(LxSEXP);
+    Rcpp::traits::input_parameter< const LogicalVector& >::type drop(dropSEXP);
+    rcpp_result_gen = Rcpp::wrap(drop_rows_csc(Lp, Li, Lx, drop));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -301,9 +346,12 @@ static const R_CallMethodDef CallEntries[] = {
     {"_walk_bvn_rect_prob", (DL_FUNC) &_walk_bvn_rect_prob, 5},
     {"_walk_omp_info", (DL_FUNC) &_walk_omp_info, 0},
     {"_walk_ctmc_n2ll_arma", (DL_FUNC) &_walk_ctmc_n2ll_arma, 20},
-    {"_walk_ctmc_n2ll_joint_arma", (DL_FUNC) &_walk_ctmc_n2ll_joint_arma, 24},
+    {"_walk_ctmc_n2ll_joint_arma", (DL_FUNC) &_walk_ctmc_n2ll_joint_arma, 23},
     {"_walk_walk_has_openmp", (DL_FUNC) &_walk_walk_has_openmp, 0},
     {"_walk_ctmc_predict_arma", (DL_FUNC) &_walk_ctmc_predict_arma, 21},
+    {"_walk_row_support_bbox", (DL_FUNC) &_walk_row_support_bbox, 6},
+    {"_walk_speed_filter_cpp", (DL_FUNC) &_walk_speed_filter_cpp, 6},
+    {"_walk_drop_rows_csc", (DL_FUNC) &_walk_drop_rows_csc, 4},
     {"_walk_sp_mat_div", (DL_FUNC) &_walk_sp_mat_div, 2},
     {"_walk_stat_dist", (DL_FUNC) &_walk_stat_dist, 1},
     {"_walk_logit", (DL_FUNC) &_walk_logit, 3},

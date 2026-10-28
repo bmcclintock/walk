@@ -37,8 +37,8 @@ test_that("proc_telem: id from ctmm identity, list input, max_gap, same times as
   # the same animal twice is not a valid list (non-contiguous after stacking is impossible,
   # but an id repeated in separate elements is)
   expect_error(proc_telem(list(tA, tB, tA), w$cv), "contiguous")
-  # old positional time_unit gives a clear error
-  expect_error(proc_telem(tA, w$cv, "days"), "time_unit")
+  # an invalid return_type is rejected
+  expect_error(proc_telem(tA, w$cv, "days"), "must be one of")
   expect_error(proc_telem(w$A, w$cv), "telemetry")
 })
 
@@ -87,11 +87,39 @@ test_that("bind_proc_data combines proc_telem, proc_Langevin, or a mix", {
   expect_error(bind_proc_data(pA, pA), "more than one input")
   pAc <- suppressWarnings(proc_telem(tA, w$cv, clipRast = TRUE))
   pCc <- suppressWarnings(proc_Langevin(C, w$cv, clipRast = TRUE))
-  expect_error(bind_proc_data(pAc, pCc), "clipRast")
+  # different clipRast windows are combined on their bounding box (tested in test-domain.R)
+  expect_false(identical(pAc$clip$ext, pCc$clip$ext))
+  expect_silent(bind_proc_data(pAc, pCc))
   expect_error(bind_proc_data(pA, suppressWarnings(proc_Langevin(C, w$cv, return_type = "data.frame"))),
                "return_type")
   # 'ids' overrides
   b <- bind_proc_data(pA, suppressWarnings(proc_Langevin(C, w$cv)), ids = c("x", "y"))
   expect_equal(unique(b$times$id), c("x", "y"))
   expect_equal(unique(b$times$seg), 1:2)
+})
+
+test_that("make_walk_data accepts the full cell_data and rast_mask for clipped proc_data", {
+  w <- sim_world()
+  mask <- terra::rast(w$cv[[1]]); terra::values(mask) <- 1
+  mask[terra::xyFromCell(mask, 1:terra::ncell(mask))[, 1] > 50e3] <- NA
+  for (clip in list(TRUE, terra::ext(4e3, 46e3, 4e3, 36e3))) {
+    p <- suppressWarnings(proc_Langevin(w$A, w$cv, clipRast = clip))
+    expect_lt(ncol(p$L), terra::ncell(w$cv))
+    cvc <- terra::crop(w$cv, terra::ext(p$clip$ext)); mc <- terra::crop(mask, terra::ext(p$clip$ext))
+    ref <- suppressWarnings(make_walk_data(p, cvc, rast_mask = mc))
+    for (args in list(list(w$cv, mask), list(w$cv, mc), list(cvc, mask), list(w$cv, NULL))) {
+      wd <- suppressWarnings(make_walk_data(p, args[[1]], rast_mask = args[[2]]))
+      ref_k <- if (is.null(args[[2]])) suppressWarnings(make_walk_data(p, cvc)) else ref
+      expect_identical(wd$L, ref_k$L)
+      # same cells and model; 'cell' numbers refer to the raster supplied to make_walk_data()
+      nc <- c("cell", "from_cell")
+      expect_identical(wd$q_r[, setdiff(names(wd$q_r), nc)], ref_k$q_r[, setdiff(names(ref_k$q_r), nc)])
+      expect_identical(wd$q_m[, setdiff(names(wd$q_m), nc)], ref_k$q_m[, setdiff(names(ref_k$q_m), nc)])
+      cd <- terra::unwrap(wd$cell_data)
+      expect_equal(terra::ncell(cd), terra::ncell(args[[1]]))
+      expect_equal(terra::xyFromCell(cd, wd$q_r$cell), as.matrix(wd$q_r[, c("x", "y")]), ignore_attr = TRUE)
+      expect_equal(terra::xyFromCell(cvc, ref_k$q_r$cell), as.matrix(ref_k$q_r[, c("x", "y")]), ignore_attr = TRUE)
+    }
+  }
+  expect_error(make_walk_data(p, terra::aggregate(w$cv, 2)), "clipRast")
 })

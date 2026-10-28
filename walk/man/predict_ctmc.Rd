@@ -6,34 +6,46 @@
 \usage{
 predict_ctmc(
   fit,
-  walk_data,
+  walk_data = NULL,
   aux_timestamp = NULL,
   trunc_tol = 1e-08,
   segments = NULL,
-  debug = 0,
-  ...
+  debug = 0
 )
 }
 \arguments{
 \item{fit}{A fitted model object produced by \code{\link[walk]{fit_ctmc}}}
 
-\item{walk_data}{A design data list produced by the function \code{\link{make_walk_data}}.}
+\item{walk_data}{Optional. The design data list (from \code{\link{make_walk_data}}) the
+model was fitted to. Not needed, because \code{\link{fit_ctmc}} stores the observation
+times in the fit; if supplied it is checked against the fit.}
 
 \item{aux_timestamp}{Additional times for which location prediction is desired, of the same
-kind as the data time stamps (POSIXct, or numeric for numeric \code{date}s). For
-multi-individual data supply a data frame with columns \code{id} and \code{timestamp}.}
+kind as the data time stamps (POSIXct, or numeric for numeric \code{date}s). For POSIXct data,
+\code{POSIXlt}/\code{Date}/character values are converted, numeric values are taken as seconds since
+1970-01-01 UTC, and all are shown in the time zone of the data. A single vector is used for
+every segment (restricted to the segment's time span). For multi-individual data supply a
+data frame with columns \code{id} and \code{timestamp} to give times per individual.}
 
 \item{trunc_tol}{Level for truncating small location prediction probabilities.}
 
 \item{segments}{Optional integer vector of segment numbers (\code{walk_data$times$seg}) or
-character vector of individual ids to predict. Defaults to all.}
+character (or factor) vector of individual ids to predict. Numeric values are always segment
+numbers, so select numeric-looking ids with e.g. \code{segments = "1"}. Defaults to all.}
 
 \item{debug}{Developer debugging.}
-
-\item{...}{Aditional arguments passed to internal function \code{ctmc_predict_arma}.}
 }
 \value{
-A list with \code{local_state_prob} (sparse \code{dgCMatrix}) and \code{times}.
+A list (class \code{walk_pred}) with \code{local_state_prob} (sparse \code{dgCMatrix}), \code{times}, and
+\code{cell_map}; use \code{\link{walk_rast}} to map rows to a raster. Column
+\code{j} of \code{local_state_prob} is the cell with \code{cellx == j}; \code{cell_map$cell} gives its cell number in
+the \code{cell_data} raster given to \code{\link{make_walk_data}} (also when
+\code{clipRast} was used). Rows of \code{times} with \code{type == "p"} are \code{aux_timestamp} times; an
+\code{aux_timestamp} equal to an observation time is not duplicated. \code{times$excluded} is the reason an
+observation was excluded (\code{walk_data$times$excluded}, see \code{\link{make_walk_data}}; \code{NA} for
+retained observations and \code{aux_timestamp} times). Predictions for excluded observations use the movement model only, like \code{aux_timestamp} times. As in
+\code{\link{fit_ctmc}}, each segment starts at its first retained observation, so excluded
+observations before it get the same distribution as that observation.
 }
 \description{
 Predict Movement Path From Fitted CTMC Model

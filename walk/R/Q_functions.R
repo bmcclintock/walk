@@ -54,6 +54,9 @@ get_Q <- function(fit, clip=TRUE, sparse=TRUE){
 #' @param clip If truncation was used for the rate matrix during model fitting, should it be used here?
 #' @param method Method used for eigen decomposition. One of \code{"lu"} or \code{"arpack"}.
 #' @param ... Extra arguments to pass to \code{\link[rARPACK]{eigs}}
+#' @return A data frame with `cell` (cell number in the `cell_data` raster given to
+#' \code{\link{make_walk_data}}, also when `clipRast` was used), `cellx` (index of
+#' the cell in the model), `ud`, and any `hpd_*` columns.
 #' @author Devin S. Johnson
 #' @export
 #' @importFrom Matrix t lu expand Matrix
@@ -61,8 +64,7 @@ get_Q <- function(fit, clip=TRUE, sparse=TRUE){
 #' @importFrom rARPACK eigs
 get_lim_ud <- function(fit=NULL, hpd=NULL, clip=TRUE, method="lu",...){
   
-  clip <- as.numeric(clip*fit$data_list$clip)
-  Q <- get_Q(fit)
+  Q <- get_Q(fit, clip=clip)
   if(!check_irreducibility(Q)$irreducible){
     stop("The CTMC defined by the model appears to be reducible, there is no limiting distribution! ",
          "Check that the masked habitat is not divided into seperate regions.")
@@ -92,6 +94,7 @@ get_lim_ud <- function(fit=NULL, hpd=NULL, clip=TRUE, method="lu",...){
     ud <-Re(ud) * sign(median(Re(ud)))
     # ud <- pmax(0,ud)
   } else if(method=="arpack"){
+    if(!requireNamespace("rARPACK", quietly=TRUE)) stop("method = \"arpack\" needs the 'rARPACK' package; install it or use method = \"lu\".")
     ud <- rARPACK::eigs(tQ, 3, "LM", sigma=0, ...)$vectors 
     ud <-Re(ud) * sign(median(Re(ud)))
     # ud <- pmax(0,ud)
@@ -109,11 +112,14 @@ get_lim_ud <- function(fit=NULL, hpd=NULL, clip=TRUE, method="lu",...){
     hpd_df <- NULL
     for(i in 1:length(hpd)){
       hpd_df <- cbind(hpd_df, ud$ud)
-      hpd_df[val>hpd[i]/100,i] <- NA
+      # smallest set of highest-density cells with total mass >= level: a cell is in the set
+      # if the mass of the cells ranked above it is still below the level
+      hpd_df[(val - ud$ud) >= hpd[i]/100 - 1e-12,i] <- NA
     }
     colnames(hpd_df) <- paste0("hpd_",hpd)
     ud <- cbind(ud, hpd_df)
     ud <- ud[order(ud$cellx),]
   }
+  attr(ud, "cell_data") <- fit$cell_data
   return(ud)
 }

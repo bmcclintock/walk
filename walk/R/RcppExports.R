@@ -22,11 +22,11 @@ ctmc_n2ll_arma <- function(L, dt, ns, from_to, Xb_q_r, Xb_q_m, p, delta, hij, eq
 }
 
 #' Joint multi-segment CTMC -2 log-likelihood (internal)
-#' @return list(n2ll = per-segment -2 log L, zero_obs = 1-based indices of
-#'   observations with zero predictive probability)
+#' @return list(n2ll = per-segment -2 log L, zero_obs = 1-based index of the first
+#'   observation with zero predictive probability in each segment where that happens)
 #' @keywords internal
-ctmc_n2ll_joint_arma <- function(L, dt, seg_start, ns, from_to, Xb_q_r, Xb_q_m, p, delta, hij, eq_prec, link_r, a_r, l_r, u_r, link_m, a_m, form, k, norm, clip, nthreads = 1L, prune = 0.0, skip_zero = FALSE) {
-    .Call(`_walk_ctmc_n2ll_joint_arma`, L, dt, seg_start, ns, from_to, Xb_q_r, Xb_q_m, p, delta, hij, eq_prec, link_r, a_r, l_r, u_r, link_m, a_m, form, k, norm, clip, nthreads, prune, skip_zero)
+ctmc_n2ll_joint_arma <- function(L, dt, seg_start, ns, from_to, Xb_q_r, Xb_q_m, p, delta, hij, eq_prec, link_r, a_r, l_r, u_r, link_m, a_m, form, k, norm, clip, nthreads = 1L, prune = 0.0) {
+    .Call(`_walk_ctmc_n2ll_joint_arma`, L, dt, seg_start, ns, from_to, Xb_q_r, Xb_q_m, p, delta, hij, eq_prec, link_r, a_r, l_r, u_r, link_m, a_m, form, k, norm, clip, nthreads, prune)
 }
 
 #' Report whether walk was compiled with OpenMP
@@ -37,6 +37,39 @@ walk_has_openmp <- function() {
 
 ctmc_predict_arma <- function(L, dt, ns, from_to, Xb_q_r, Xb_q_m, p, delta, hij, eq_prec, trunc_tol, link_r, a_r, l_r, u_r, link_m, a_m, form, k, norm, clip) {
     .Call(`_walk_ctmc_predict_arma`, L, dt, ns, from_to, Xb_q_r, Xb_q_m, p, delta, hij, eq_prec, trunc_tol, link_r, a_r, l_r, u_r, link_m, a_m, form, k, norm, clip)
+}
+
+#' Bounding box of the non-zero cells of each row of L (internal)
+#' @param Lp,Li,Lx slots `p`, `i`, `x` of `L` (dgCMatrix, rows = observations, columns = cells)
+#' @param nrow number of rows of `L`
+#' @param x,y cell coordinates, one per column of `L`
+#' @return `nrow x 4` matrix (xmin, xmax, ymin, ymax); `NA` for rows without non-zero cells
+#' @noRd
+row_support_bbox <- function(Lp, Li, Lx, nrow, x, y) {
+    .Call(`_walk_row_support_bbox`, Lp, Li, Lx, nrow, x, y)
+}
+
+#' Maximum-speed filter (internal)
+#' @param bb output of `row_support_bbox()`
+#' @param tt cumulative time (`cumsum(dt)` with `dt = 0` at segment starts)
+#' @param seg segment of each row
+#' @param keep rows that take part (retained observations; rows without cells are skipped)
+#' @param vmax,buffer maximum speed and distance tolerance
+#' @return 1-based rows to exclude, in the order they are removed. Within each segment
+#' (in order of first appearance) the fastest step between consecutive retained rows is
+#' found (the first one if tied); if it exceeds `vmax`, whichever of its two rows leaves the
+#' slower bypass between its neighbours is removed (ties: the earlier row, except on the
+#' last step of the segment, where the last row is removed), until no step exceeds `vmax`.
+#' @noRd
+speed_filter_cpp <- function(bb, tt, seg, keep, vmax, buffer) {
+    .Call(`_walk_speed_filter_cpp`, bb, tt, seg, keep, vmax, buffer)
+}
+
+#' Remove rows from a dgCMatrix (and any stored zeros) without a matrix product (internal)
+#' @return list(p, i, x) for the new matrix with the same dimensions
+#' @noRd
+drop_rows_csc <- function(Lp, Li, Lx, drop) {
+    .Call(`_walk_drop_rows_csc`, Lp, Li, Lx, drop)
 }
 
 sp_mat_div <- function(X, Y) {

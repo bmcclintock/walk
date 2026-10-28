@@ -118,7 +118,7 @@ double segment_n2ll(arma::uword i0, arma::uword i1, const arma::uword* Lcp,
                     const arma::vec& dt, const arma::rowvec& delta, double p,
                     arma::uword ns, const arma::uword* Pcp,
                     const arma::uword* Pri, const double* Pv, double alpha_0,
-                    double tol, double prune, bool skip_zero,
+                    double tol, double prune,
                     std::vector<int>& zobs, Workspace& ws) {
   double ll = 0.0;
   bool full = (p > 0.0);  // outlier mixture => support is everything we reach
@@ -180,18 +180,10 @@ double segment_n2ll(arma::uword i0, arma::uword i1, const arma::uword* Lcp,
       // support does not overlap the propagated distribution).
       for (arma::uword j : ws.act) ws.vc[j] = 0.0;
       ws.act.clear();
-      zobs.push_back((int)i + 1);   // 1-based observation index
-      if (!skip_zero) {
-        for (arma::uword j : ws.ract) ws.res[j] = 0.0;
-        return R_PosInf;
-      }
-      // treat as missing: carry the propagated distribution forward
-      u = 0.0;
-      for (arma::uword j : ws.ract) { double val = ws.res[j]; if (val > 0.0) { ws.vc[j] = val; ws.act.push_back(j); u += val; } }
+      // Reported (1-based) so the user can exclude it with exclude_obs().
+      zobs.push_back((int)i + 1);
       for (arma::uword j : ws.ract) ws.res[j] = 0.0;
-      if (!(u > 0.0)) return R_PosInf;
-      for (arma::uword j : ws.act) ws.vc[j] /= u;   // u ~ 1, not added to ll
-      continue;
+      return R_PosInf;
     }
     for (arma::uword j : ws.ract) ws.res[j] = 0.0;
     ll += std::log(u);
@@ -216,8 +208,8 @@ double segment_n2ll(arma::uword i0, arma::uword i1, const arma::uword* Lcp,
 }  // namespace
 
 //' Joint multi-segment CTMC -2 log-likelihood (internal)
-//' @return list(n2ll = per-segment -2 log L, zero_obs = 1-based indices of
-//'   observations with zero predictive probability)
+//' @return list(n2ll = per-segment -2 log L, zero_obs = 1-based index of the first
+//'   observation with zero predictive probability in each segment where that happens)
 //' @keywords internal
 // [[Rcpp::export]]
 Rcpp::List ctmc_n2ll_joint_arma(
@@ -234,7 +226,7 @@ Rcpp::List ctmc_n2ll_joint_arma(
     int link_r, double a_r, double l_r, double u_r,
     int link_m, double a_m,
     int form, double k, bool norm, double clip,
-    int nthreads = 1, double prune = 0.0, bool skip_zero = false)
+    int nthreads = 1, double prune = 0.0)
 {
   arma::uword N = dt.n_elem;
   if (L.n_cols != N) Rcpp::stop("ncol(L) must equal length(dt)");
@@ -314,7 +306,7 @@ Rcpp::List ctmc_n2ll_joint_arma(
       arma::uword i0 = seg_start(s), i1 = (s + 1 < S) ? seg_start(s + 1) : N;
       try {
         out(s) = segment_n2ll(i0, i1, Lcp, Lri, Lv, dt, delta, p, ns, Pcp, Pri, Pv,
-                              alpha_0, eq_prec, prune, skip_zero, zo[s], wss[tid]);
+                              alpha_0, eq_prec, prune, zo[s], wss[tid]);
       } catch (...) {
 #ifdef _OPENMP
         #pragma omp atomic write

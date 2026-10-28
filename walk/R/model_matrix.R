@@ -10,7 +10,7 @@ NULL
 #' @importFrom stats model.matrix sd
 #' @export
 dm_q_m <- function(formula, ddl){
-  X <- model.matrix(formula, ddl$q_m)
+  X <- dm_check_na(formula, ddl$q_m, "q_m")
   # if(is.null(par_list$offset)){
   #   par_list$offset <- ~0 + log(1/num_neigh)
   #   offset = model.matrix(par_list$offset, ddl$q)
@@ -40,7 +40,7 @@ dm_q_m <- function(formula, ddl){
 #' @rdname dm_matrix
 #' @export
 dm_q_r <- function(formula, ddl){
-  X <- model.matrix(formula, ddl$q_r)
+  X <- dm_check_na(formula, ddl$q_r, "q_r")
   keep_col <- !((colMeans(X)!=1) & (apply(X, 2, sd)==0))
   X <- X[,keep_col,drop=FALSE]
   
@@ -54,4 +54,22 @@ dm_q_r <- function(formula, ddl){
   # lookup <- mX[,c('from_cellx','to_cellx','idx_q')]
   # return(list(X_q = uX, idx_q=lookup, off_q=offset))
   return(X)
+}
+
+# model.matrix() silently drops rows with NA covariates, which would misalign the design matrix
+# with the cells (q_r) or cell pairs (q_m). Keep all rows and stop with an informative error.
+#' @noRd
+dm_check_na <- function(formula, data, what){
+  mf <- stats::model.frame(formula, data, na.action = stats::na.pass)
+  X <- model.matrix(formula, mf)
+  bad <- !stats::complete.cases(X)
+  if(any(bad)){
+    v <- all.vars(formula)
+    v <- v[vapply(v, function(z) z %in% names(data) && anyNA(data[[z]][bad]), logical(1))]
+    cl <- if(what == "q_r") data$cell[bad] else unique(c(data$from_cell[bad], data$cell[bad]))
+    stop("Covariate(s) ", paste(v, collapse=", "), " in '", what, "' are NA for ", sum(bad), " row(s) ",
+         "(cells ", paste(utils::head(sort(unique(cl)), 10), collapse=", "), if(length(unique(cl)) > 10) ", ...",
+         "). Mask those cells with 'rast_mask' in make_walk_data() or fill the missing values.", call. = FALSE)
+  }
+  X
 }

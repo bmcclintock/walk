@@ -34,7 +34,10 @@ likelihood surfaces will be \code{0} for those cells.}
 4 times the maximum error standard deviation as determined by the UERE and HDOP
 of the telemetry data.}
 
-\item{trunc}{The smallest probability value that is considered to be > 0. Defaults to 1.0e-8.}
+\item{trunc}{The smallest probability value that is considered to be > 0. Defaults to 1.0e-8.
+Each observation's cell probabilities are normalised to sum to 1 and values below \code{trunc} are
+then set to 0 without renormalising; this only adds a parameter-free constant to the
+log-likelihood.}
 
 \item{return_inadmissible}{Logical. If there are locations outside the admissible areas of movement return the observations and raster cell numbers.}
 
@@ -48,11 +51,12 @@ arithmetically from the raster geometry. \code{"buffer"} uses \code{terra::buffe
 buffer sits slightly inside the true circle, so it can miss a few edge cells; otherwise the
 results are identical. Probabilities are computed in C++ either way.}
 
-\item{clipRast}{Restrict the returned likelihood matrix to part of \code{cell_data}. \code{FALSE} (default)
-keeps the full raster, so \code{L} has \code{terra::ncell(cell_data)} columns. \code{TRUE} clips to the
-error-buffer (\code{t_buf}) region: the bounding box of the circles of radius \code{max_err} around all
-locations. A \code{terra::ext()} object (or anything \code{terra::ext()} accepts, such as a \code{SpatRaster}
-or \code{SpatVector}) clips to that extent. The region is snapped outward to whole cells of
+\item{clipRast}{The model domain: which part of \code{cell_data} the movement model (and so the
+utilization distribution) is defined on. \code{FALSE} (default) uses the whole raster. A number
+\code{b >= 0} uses the bounding box of the error neighbourhoods (the circles of radius \code{max_err}
+around all locations) expanded by \code{b} map units on every side; \code{TRUE} is the same as \code{0}
+(no buffer). A \code{terra::ext()} object (or anything \code{terra::ext()} accepts, such as a \code{SpatRaster}
+or \code{SpatVector}) uses that extent. The region is snapped outward to whole cells of
 \code{cell_data} and limited to the raster, so it matches
 \verb{terra::crop(cell_data, <region>, snap = "out")}. Cells outside the region are treated like
 \code{NA} cells: each location's likelihood is renormalised over the cells inside it. A warning is
@@ -60,11 +64,13 @@ given if a user-supplied extent cuts through any location's error neighbourhood.
 \code{L} has one column per cell of the clipped raster (cell numbers refer to the clipped raster)
 and the output gains a \code{clip} element (an attribute for the data.frame/matrix return types)
 with \code{ext} (the snapped extent as \code{c(xmin, xmax, ymin, ymax)}), \code{dim} (rows and columns of the
-clipped raster) and \code{cell} (cell number in \code{cell_data} of each column of \code{L}). Use
-\code{terra::crop(cell_data, terra::ext(out$clip$ext))} to get the matching covariate raster for
-\code{make_walk_data()}. \code{return_inadmissible} output always uses \code{cell_data} cell numbers.
-To process individuals separately and combine them with \code{\link{bind_proc_data}}, give
-every call the same extent (a \code{terra::ext()}), not \code{TRUE}, so that all outputs share one grid.}
+clipped raster), \code{cell} (cell number in \code{cell_data} of each column of \code{L}) and \code{full_dim}
+(rows and columns of \code{cell_data}). \code{make_walk_data()} can be given the full \code{cell_data} (and a
+full-size \code{rast_mask}): it crops them to the clipped grid itself, and its output reports cell
+numbers of the full raster. \code{return_inadmissible} output always uses \code{cell_data} cell numbers.
+Outputs with different regions (e.g. one call per individual with \code{clipRast = 5000}) can be
+combined with \code{\link{bind_proc_data}}, which uses the bounding box of their regions.
+See 'Model domain' below for how to choose the region.}
 
 \item{id}{Name of the column in \code{data} identifying individuals (default \code{"id"}). If the column
 is absent, list elements are named by their list names (or position), and a single object is
@@ -100,8 +106,31 @@ CTMC HMM fitting functions. The arguments and the output have the same form as
 contains columns \code{obs}, \code{id}, \code{seg}, \code{timestamp} and \code{dt} (attributes \code{time_unit}, and
 \code{ts_scale}, the factor converting differences of \code{as.numeric(timestamp)} to \code{dt}); \code{dt} is \code{0}
 at the first observation of every segment. Observations with zero likelihood in every admissible
-cell get an all-zero row in \code{L} and are treated as missing by the fitting functions.
+cell get an all-zero row in \code{L}; \code{\link{make_walk_data}} excludes them (\code{times$excluded == "no_cells"}).
 }
+\section{Model domain}{
+
+The CTMC is defined on the cells of the domain only, and movement out of it is impossible
+(the domain edge acts as a reflecting boundary). So the domain is part of the model, not just
+a computational shortcut:
+\itemize{
+\item Memory and run time of \code{make_walk_data()} and \code{fit_ctmc()} grow with the number of cells in
+the domain. For large rasters (millions of cells) \code{make_walk_data()} on the full raster can
+exhaust memory, so restrict the domain here with \code{clipRast}. This is the only place to do so:
+doing it here also keeps \code{L} small.
+\item The utilization distribution (\code{get_lim_ud()}, \code{walk_rast()}) is the stationary distribution
+on the domain. With \code{clipRast = TRUE} it ends at the edge of the location error
+neighbourhoods; use a buffer (\verb{clipRast = <distance>}) large enough to cover the area where
+you want the UD. With \code{norm = TRUE} (the default in \code{ctmc_model()}) the UD near the edge
+depends a little on where the edge is, and with \code{delta = "stationary"} the parameter
+estimates can depend on the domain too; increase the buffer until the results of interest
+no longer change.
+\item The log-likelihood (and so AIC) depends on the domain, e.g. with \code{delta = "uniform"} it
+contains \verb{log(number of cells)} once per track segment. Only compare models fitted on the
+same domain.
+}
+}
+
 \author{
 Devin S. Johnson
 }

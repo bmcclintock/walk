@@ -31,7 +31,7 @@ test_that("proc_Langevin: dt in hours, within individual, with segments", {
                "contiguous")
 })
 
-test_that("joint likelihood: equals the original forward algorithm and is additive", {
+test_that("joint likelihood: equals ctmc_n2ll() for one segment and is additive", {
   w <- sim_world(); par <- par_test()
   pA <- suppressWarnings(proc_Langevin(w$A, w$cv))
   pB <- suppressWarnings(proc_Langevin(w$B, w$cv))
@@ -61,7 +61,7 @@ test_that("1 and 2 threads give identical results", {
   expect_identical(as.numeric(ctmc_n2ll_joint(par, d9)), as.numeric(ctmc_n2ll_joint(par, d1)))
 })
 
-test_that("skip_zero treats impossible fixes as missing", {
+test_that("impossible fixes give Inf and are reported in zero_obs; excluding them makes it finite", {
   w <- sim_world(); par <- par_test()
   A <- w$A
   # Fix 15: a precise (GPS-like) fix 1 second after fix 14 but >= 15 km away, still
@@ -74,12 +74,13 @@ test_that("skip_zero treats impossible fixes as missing", {
   expect_true(all(diff(as.numeric(A$date)) >= 0))
   wd <- make_walk_data(suppressWarnings(proc_Langevin(A, w$cv)), w$cv)
   d <- dl_of(wd)
-  expect_equal(as.numeric(ctmc_n2ll_joint(par, d)), Inf)
-  d$skip_zero <- TRUE
   v <- ctmc_n2ll_joint(par, d)
+  expect_equal(as.numeric(v), Inf)
   expect_equal(attr(v, "zero_obs"), 15L)
   wd2 <- wd; wd2$L[15, ] <- 0; wd2$L <- Matrix::drop0(wd2$L)
-  expect_equal(as.numeric(v), as.numeric(ctmc_n2ll_joint(par, dl_of(wd2))), tolerance = 1e-10)
+  v2 <- ctmc_n2ll_joint(par, dl_of(wd2))
+  expect_true(is.finite(v2)); expect_null(attr(v2, "zero_obs"))
+  expect_equal(as.numeric(v2), as.numeric(ctmc_n2ll_joint(par, dl_of(exclude_obs(wd, 15)))))
 })
 
 test_that("joint fit converges and predict_ctmc returns distributions", {

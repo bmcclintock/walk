@@ -18,6 +18,11 @@ get_lim_ud(fit = NULL, hpd = NULL, clip = TRUE, method = "lu", ...)
 
 \item{...}{Extra arguments to pass to \code{\link[rARPACK]{eigs}}}
 }
+\value{
+A data frame with \code{cell} (cell number in the \code{cell_data} raster given to
+\code{\link{make_walk_data}}, also when \code{clipRast} was used), \code{cellx} (index of
+the cell in the model), \code{ud}, and any \verb{hpd_*} columns.
+}
 \description{
 Get the limiting utilization distribution of the CTMC movement process
 }

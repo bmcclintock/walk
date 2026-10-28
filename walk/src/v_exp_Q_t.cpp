@@ -6,11 +6,9 @@
 // ---------------------------------------------------------------------------
 // Build the uniformization matrix P = I + Q / alpha_0 once, and return alpha_0.
 //
-// P depends only on Q, NOT on t.  The original code rebuilt P inside
-// v_exp_Q_t(), i.e. once per time step.  For a raster with ns cells and
-// nnz(Q) ~ 5*ns that is N allocations of an ns x ns sparse matrix per
-// likelihood evaluation.  Hoisting it out is the single largest constant
-// factor win available without changing the algorithm.
+// P depends only on Q, NOT on t, so it is built once per Q and reused for every
+// time step (rebuilding it per step would allocate an ns x ns sparse matrix N
+// times per likelihood evaluation).
 // ---------------------------------------------------------------------------
 double uniformization_P(const arma::sp_mat& Q, arma::sp_mat& P) {
   arma::spdiagview<double> diag_Q = Q.diag();
@@ -65,14 +63,4 @@ arma::mat v_exp_Q_t_pre(const arma::rowvec& v, const arma::sp_mat& P,
   }
 
   return arma::conv_to<arma::mat>::from(result);
-}
-
-// ---------------------------------------------------------------------------
-// Backwards-compatible wrapper (builds P internally).
-// ---------------------------------------------------------------------------
-arma::mat v_exp_Q_t(const arma::rowvec& v, const arma::sp_mat& Q,
-                    double t, double tolerance) {
-  arma::sp_mat P;
-  double alpha_0 = uniformization_P(Q, P);
-  return v_exp_Q_t_pre(v, P, alpha_0, t, tolerance);
 }

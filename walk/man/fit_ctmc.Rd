@@ -15,7 +15,6 @@ fit_ctmc(
   eq_prec = 1e-08,
   nthreads = 1,
   prune = 0,
-  skip_zero = FALSE,
   debug = 0,
   ...
 )
@@ -30,8 +29,10 @@ fit_ctmc(
 \item{hessian}{Logical. Should the Hessian matrix be calculated to obtain the parameter
 variance-covariance matrix.}
 
-\item{start}{Optional starting values for the parameter must be a list of the
-form \code{list(beta_l=c(), beta_q_r=c(), beta_q_r=c())}.}
+\item{start}{Optional starting values: a named list with elements \code{beta_q_r}, \code{beta_q_m} and,
+if \code{p = TRUE}, \code{logit_p} (any may be omitted; omitted ones start at 0, or \code{qlogis(0.05)} for
+\code{logit_p}). Each must have one value per model-matrix column, in the order of the columns
+(e.g. \code{(Intercept)} first). A fitted model's \code{fit$start} has this form.}
 
 \item{method}{Optimization method. See \code{\link[optimx]{optimr}}}
 
@@ -46,15 +47,12 @@ a generous value. If the model is running slow, you can try reducing it to, say,
 \item{prune}{Optional threshold for dropping filtered state probabilities smaller than
 \code{prune * max(phi)} during the forward recursion. \code{0} (default) is exact.}
 
-\item{skip_zero}{Logical. If \code{TRUE}, observations whose error support has zero predictive
-probability are treated as missing rather than making the likelihood infinite. The indices
-of such observations at the solution are returned in \code{zero_obs}.}
-
 \item{debug}{Integer from 1-4. Opens browser() at various points in the function call. Mostly for
 package developers.}
 
-\item{...}{Additional arguments passed to the optimization function
-\code{\link[optimx]{optimr}} from the \code{\link[optimx]{optimx-package}}.}
+\item{...}{Additional named arguments passed to the optimization function
+\code{\link[optimx]{optimr}} from the \code{\link[optimx]{optimx-package}}: \code{control},
+\code{lower}, \code{upper}, \code{gr} or \code{hess}. Any other argument is an error.}
 }
 \description{
 Fit CTMC movement model to telemetry data
@@ -64,10 +62,22 @@ Data from several individuals (see \code{\link{proc_Langevin}}, argument \code{i
 \code{\link{bind_proc_data}}) are fitted as a single joint model: all individuals share
 the movement parameters, each individual (or each segment created with \code{max_gap}) is an
 independent chain started from \code{delta}, and the objective is the sum of the per-segment
--2 log-likelihoods. A single-individual data set is the special case with one segment
-and gives exactly the same value as before. Rates are per unit of \code{walk_data$times$dt},
+-2 log-likelihoods. A single-individual data set is the special case with one segment.
+Rates are per unit of \code{walk_data$times$dt},
 i.e. per \code{time_unit} of \code{\link{proc_Langevin}} / \code{\link{proc_telem}}; the unit is
-returned as \code{time_unit}.
+returned as \code{time_unit}. \code{seg_info} gives the segment number, individual \code{id}, first row
+and number of observations of each segment (and its -2 log-likelihood \code{n2ll} when
+\code{fit = TRUE}); \code{seg_n2ll} is named by segment number. \code{n_excluded} counts the excluded
+observations (\code{walk_data$times$excluded}, set by \code{\link{make_walk_data}} and
+\code{\link{exclude_obs}}). An excluded observation is exactly equivalent to a deleted one: the
+next time step is measured from the previous retained observation, and a segment starts (from
+\code{delta}) at its first retained observation.
+
+An observation that cannot be reached from the previous ones under the model (e.g. a gross
+outlier) gives likelihood zero. If this happens at the starting values, \code{fit_ctmc()} stops
+with an error that lists the first such observation of each affected segment; exclude them with
+\code{make_walk_data(vmax = )} or \code{\link{exclude_obs}} (or, if they are plausible, use starting
+values with a higher rate). \code{zero_obs} gives such observations at the returned parameters.
 }
 \author{
 Devin S. Johnson

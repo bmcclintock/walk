@@ -149,7 +149,7 @@ struct ObsOut {
   bool failed = false;             // exception (e.g. std::bad_alloc) inside the parallel loop
 };
 
-// Mask, normalise, truncate in place (mirrors the original R loop)
+// Mask, normalise, truncate in place
 static void finish_obs(ObsOut& o, const int* mask, double trunc) {
   double tot = 0.0;
   for (size_t j = 0; j < o.cell.size(); ++j) {

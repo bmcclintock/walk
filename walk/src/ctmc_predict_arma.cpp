@@ -76,7 +76,7 @@ arma::mat ctmc_predict_arma(
     emission_update(b_emission, L.col(i).t(), p, ns);
     
     // 2. Backpropagate vector across continuous interval dt(i)
-    // Note: v_exp_Q_t(b, Q, dt) computes b * exp(Q * dt).
+    // Note: v_exp_Q_t_pre(b, P, alpha_0, dt) computes b * exp(Q * dt).
     // Transposition relation: exp(Q * dt) * b^T = (b * exp(Q^T * dt))^T
     beta_curr = v_exp_Q_t_pre(b_emission, Pb, alpha_0, dt(i), eq_prec) / scale_factors(i);
     

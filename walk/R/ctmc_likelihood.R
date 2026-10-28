@@ -43,7 +43,7 @@ ctmc_n2ll <- function(par, data_list, debug=0, ...){
     Xb_q_m = Xb_q_m,
     p = p,
     delta = matrix(delta, nrow=1),
-    hij = data_list$h,
+    hij = if(is.null(data_list$hij)) data_list$h else data_list$hij,
     eq_prec = data_list$eq_prec,
     link_r = which(data_list$link_r==c("soft_plus", "log", "logit")),
     a_r = data_list$a_r,
@@ -78,10 +78,10 @@ ctmc_n2ll <- function(par, data_list, debug=0, ...){
 #' @details The forward recursion only touches cells that can carry probability
 #' (the support of the observation likelihood, expanded by the uniformisation
 #' steps), which is exact, and segments are evaluated in parallel with OpenMP using
-#' `data_list$nthreads` threads. If `data_list$skip_zero` is `TRUE`, observations
-#' whose error support does not overlap the predicted distribution are treated as
-#' missing instead of returning `Inf`; their indices are returned in
-#' `attr(, "zero_obs")`.
+#' `data_list$nthreads` threads. A segment containing an observation whose error support
+#' does not overlap the predicted distribution has -2 log-likelihood `Inf`; the first such
+#' observation of each segment is returned in `attr(, "zero_obs")` (rows of
+#' `walk_data$times`), so it can be removed with \code{\link{exclude_obs}}.
 #' @author Devin S. Johnson, Brett T. McClintock
 #' @export
 ctmc_n2ll_joint <- function(par, data_list, by_segment=FALSE, debug=0, ...){
@@ -108,7 +108,6 @@ ctmc_n2ll_joint <- function(par, data_list, by_segment=FALSE, debug=0, ...){
   if(is.null(Lt)) Lt <- Matrix::t(data_list$L)
   nthreads <- data_list$nthreads; if(is.null(nthreads)) nthreads <- 1L
   prune <- data_list$prune; if(is.null(prune)) prune <- 0
-  skip_zero <- isTRUE(data_list$skip_zero)
   if(debug==2) browser()
   r <- ctmc_n2ll_joint_arma(
     L = Lt, dt = data_list$dt, seg_start = as.integer(seg_start),
@@ -122,7 +121,7 @@ ctmc_n2ll_joint <- function(par, data_list, by_segment=FALSE, debug=0, ...){
     a_m = data_list$a_m,
     form = which(data_list$form==c("mult", "sde")),
     k = data_list$k, norm = data_list$norm, clip = data_list$clip,
-    nthreads = as.integer(nthreads), prune = prune, skip_zero = skip_zero
+    nthreads = as.integer(nthreads), prune = prune
   )
   out <- if(by_segment) r$n2ll else sum(r$n2ll)
   if(length(r$zero_obs)) attr(out, "zero_obs") <- r$zero_obs

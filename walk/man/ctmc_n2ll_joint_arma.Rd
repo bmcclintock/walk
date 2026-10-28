@@ -27,13 +27,12 @@ ctmc_n2ll_joint_arma(
   norm,
   clip,
   nthreads = 1L,
-  prune = 0,
-  skip_zero = FALSE
+  prune = 0
 )
 }
 \value{
-list(n2ll = per-segment -2 log L, zero_obs = 1-based indices of
-observations with zero predictive probability)
+list(n2ll = per-segment -2 log L, zero_obs = 1-based index of the first
+observation with zero predictive probability in each segment where that happens)
 }
 \description{
 Joint multi-segment CTMC -2 log-likelihood (internal)

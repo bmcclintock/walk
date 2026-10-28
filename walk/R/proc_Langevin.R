@@ -10,6 +10,9 @@
 #' 4 times the maximum error standard deviation as determined by the UERE and HDOP
 #' of the telemetry data.
 #' @param trunc The smallest probability value that is considered to be > 0. Defaults to 1.0e-8.
+#' Each observation's cell probabilities are normalised to sum to 1 and values below `trunc` are
+#' then set to 0 without renormalising; this only adds a parameter-free constant to the
+#' log-likelihood.
 #' @param  return_inadmissible Logical. If there are locations outside the admissible areas of movement return the observations and raster cell numbers.
 #' @param nthreads Number of OpenMP threads used for the cell probability calculations. Defaults to 1.
 #' Has no effect if `walk` was built without OpenMP (a warning is given); check with `walk:::omp_info()`.
@@ -19,11 +22,12 @@
 #' `terra::cells(touches=TRUE)`. The polygonised 
 #' buffer sits slightly inside the true circle, so it can miss a few edge cells; otherwise the 
 #' results are identical. Probabilities are computed in C++ either way.
-#' @param clipRast Restrict the returned likelihood matrix to part of `cell_data`. `FALSE` (default)
-#' keeps the full raster, so `L` has `terra::ncell(cell_data)` columns. `TRUE` clips to the
-#' error-buffer (`t_buf`) region: the bounding box of the circles of radius `max_err` around all
-#' locations. A `terra::ext()` object (or anything `terra::ext()` accepts, such as a `SpatRaster`
-#' or `SpatVector`) clips to that extent. The region is snapped outward to whole cells of
+#' @param clipRast The model domain: which part of `cell_data` the movement model (and so the
+#' utilization distribution) is defined on. `FALSE` (default) uses the whole raster. A number
+#' `b >= 0` uses the bounding box of the error neighbourhoods (the circles of radius `max_err`
+#' around all locations) expanded by `b` map units on every side; `TRUE` is the same as `0`
+#' (no buffer). A `terra::ext()` object (or anything `terra::ext()` accepts, such as a `SpatRaster`
+#' or `SpatVector`) uses that extent. The region is snapped outward to whole cells of
 #' `cell_data` and limited to the raster, so it matches
 #' `terra::crop(cell_data, <region>, snap = "out")`. Cells outside the region are treated like
 #' `NA` cells: each location's likelihood is renormalised over the cells inside it. A warning is
@@ -31,11 +35,13 @@
 #' `L` has one column per cell of the clipped raster (cell numbers refer to the clipped raster)
 #' and the output gains a `clip` element (an attribute for the data.frame/matrix return types)
 #' with `ext` (the snapped extent as `c(xmin, xmax, ymin, ymax)`), `dim` (rows and columns of the
-#' clipped raster) and `cell` (cell number in `cell_data` of each column of `L`). Use
-#' `terra::crop(cell_data, terra::ext(out$clip$ext))` to get the matching covariate raster for
-#' `make_walk_data()`. `return_inadmissible` output always uses `cell_data` cell numbers.
-#' To process individuals separately and combine them with \code{\link{bind_proc_data}}, give
-#' every call the same extent (a `terra::ext()`), not `TRUE`, so that all outputs share one grid.
+#' clipped raster), `cell` (cell number in `cell_data` of each column of `L`) and `full_dim`
+#' (rows and columns of `cell_data`). `make_walk_data()` can be given the full `cell_data` (and a
+#' full-size `rast_mask`): it crops them to the clipped grid itself, and its output reports cell
+#' numbers of the full raster. `return_inadmissible` output always uses `cell_data` cell numbers.
+#' Outputs with different regions (e.g. one call per individual with `clipRast = 5000`) can be
+#' combined with \code{\link{bind_proc_data}}, which uses the bounding box of their regions.
+#' See 'Model domain' below for how to choose the region.
 #' @param id Name of the column in `data` identifying individuals (default `"id"`). If the column
 #' is absent, list elements are named by their list names (or position), and a single object is
 #' individual `"1"`. Time differences are computed **within** individual and every individual
@@ -63,12 +69,30 @@
 #' contains columns `obs`, `id`, `seg`, `timestamp` and `dt` (attributes `time_unit`, and
 #' `ts_scale`, the factor converting differences of `as.numeric(timestamp)` to `dt`); `dt` is `0`
 #' at the first observation of every segment. Observations with zero likelihood in every admissible
-#' cell get an all-zero row in `L` and are treated as missing by the fitting functions.
+#' cell get an all-zero row in `L`; \code{\link{make_walk_data}} excludes them (`times$excluded == "no_cells"`).
 #' 
 #' @author Devin S. Johnson
 #' @importFrom Matrix sparseMatrix
 #' @importFrom terra vect buffer cells res values
 #' @importFrom methods as
+#' @section Model domain:
+#' The CTMC is defined on the cells of the domain only, and movement out of it is impossible
+#' (the domain edge acts as a reflecting boundary). So the domain is part of the model, not just
+#' a computational shortcut:
+#' * Memory and run time of `make_walk_data()` and `fit_ctmc()` grow with the number of cells in
+#'   the domain. For large rasters (millions of cells) `make_walk_data()` on the full raster can
+#'   exhaust memory, so restrict the domain here with `clipRast`. This is the only place to do so:
+#'   doing it here also keeps `L` small.
+#' * The utilization distribution (`get_lim_ud()`, `walk_rast()`) is the stationary distribution
+#'   on the domain. With `clipRast = TRUE` it ends at the edge of the location error
+#'   neighbourhoods; use a buffer (`clipRast = <distance>`) large enough to cover the area where
+#'   you want the UD. With `norm = TRUE` (the default in `ctmc_model()`) the UD near the edge
+#'   depends a little on where the edge is, and with `delta = "stationary"` the parameter
+#'   estimates can depend on the domain too; increase the buffer until the results of interest
+#'   no longer change.
+#' * The log-likelihood (and so AIC) depends on the domain, e.g. with `delta = "uniform"` it
+#'   contains `log(number of cells)` once per track segment. Only compare models fitted on the
+#'   same domain.
 #' @export
 proc_Langevin <- function(data, cell_data, return_type="sparse", max_err=NULL, trunc=1.0e-8, 
                           return_inadmissible=FALSE, nthreads=1, neighborhood=c("disc","buffer"),
@@ -138,9 +162,11 @@ proc_Langevin <- function(data, cell_data, return_type="sparse", max_err=NULL, t
 #' `proc_Langevin(..., return_type="sparse")`, in any combination, or a single list of them.
 #' @param ids Optional character vector of individual names, one per input. Overrides the
 #' `id` column of each input's `times` (each input is then treated as one individual).
-#' @details All inputs must have been built on the same `cell_data` and, if `clipRast` was used,
-#' the same clipping region (identical `$clip`; use one `terra::ext()` for every call rather than
-#' `clipRast = TRUE`, which gives each call its own region). All inputs must use the same
+#' @details All inputs must have been built on the same `cell_data`. Inputs made with different
+#' `clipRast` regions (e.g. `clipRast = TRUE` or a buffer distance per individual) are combined on
+#' the smallest window of `cell_data` that contains all of them (the bounding box of the
+#' individual windows, so the model domain is the same as if all individuals had been processed
+#' in one call with that window); if any input is unclipped the result is unclipped. All inputs must use the same
 #' `time_unit` and the same kind of time stamps (all POSIXct, or all numeric in the same units).
 #' Segments are renumbered so they stay distinct, and an individual may not appear
 #' in more than one input (use `max_gap`, not separate inputs, to split one animal's track).
@@ -156,11 +182,20 @@ bind_proc_data <- function(..., ids=NULL){
     stop("All inputs must be output of proc_telem() or proc_Langevin() with return_type = \"sparse\" or \"dense\".")
   if(!is.null(ids) && length(ids) != length(x)) stop("'ids' must have one entry per input.")
   nc <- vapply(x, function(z) ncol(z$L), 1)
-  if(length(unique(nc))!=1) stop("All inputs must have been processed with the same 'cell_data' (and 'clipRast').")
   cl <- lapply(x, function(z) z$clip)
-  if(!all(vapply(cl, function(z) identical(z, cl[[1]]), TRUE)))
-    stop("All inputs must use the same 'clipRast' region (identical '$clip'). ",
-         "Pass the same terra::ext() as 'clipRast' to every call.")
+  # inputs clipped to different windows of the same raster are put on the union window
+  un <- clip_union(cl, nc)
+  if(!is.null(un)){
+    for(k in seq_along(x)){
+      if(is.null(cl[[k]])) next   # already on the whole raster
+      Lk <- as(as(x[[k]]$L, "CsparseMatrix"), "generalMatrix")
+      M <- Matrix::sparseMatrix(i = seq_len(ncol(Lk)), j = un$map[[k]], x = 1, dims = c(ncol(Lk), un$ncell))
+      x[[k]]$L <- Lk %*% M
+    }
+    cl <- rep(list(un$clip), length(x))
+    nc <- vapply(x, function(z) ncol(z$L), 1)
+  }
+  if(length(unique(nc))!=1) stop("All inputs must have been processed with the same 'cell_data' (different numbers of cells).")
   tu <- unique(vapply(x, function(z){ u <- attr(z$times, "time_unit"); if(is.null(u)) NA_character_ else u }, ""))
   if(length(tu)!=1 || is.na(tu)) stop("All inputs must have the same (non-missing) 'time_unit' attribute.")
   tsc <- vapply(x, function(z) proc_ts_scale(z$times), 1)

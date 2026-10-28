@@ -122,15 +122,14 @@ proc_times <- function(idv, timestamp, tr, max_gap){
   times
 }
 
-# Warn about nthreads when OpenMP is unavailable / limited.
 proc_check_return_type <- function(return_type){
   ok <- c("sparse", "dense", "data.frame", "matrix_df")
-  if(is.character(return_type) && length(return_type) == 1 && !(return_type %in% ok) &&
-     return_type %in% c("secs", "seconds", "mins", "minutes", "hours", "days", "weeks"))
-    stop("'return_type' = \"", return_type, "\" looks like a time unit. 'time_unit' is no longer ",
-         "the 3rd argument; use 'time_unit = \"", return_type, "\"'.", call.=FALSE)
+  if(!is.character(return_type) || length(return_type) != 1 || !(return_type %in% ok))
+    stop("'return_type' must be one of ", paste0('"', ok, '"', collapse=", "), ".", call.=FALSE)
   invisible(NULL)
 }
+
+# Warn about nthreads when OpenMP is unavailable / limited.
 
 proc_check_threads <- function(nthreads){
   if(nthreads > 1){
@@ -167,7 +166,7 @@ proc_lik <- function(x, y, sxx, syy, sxy, max_err, cell_data, times, return_type
   win <- clip_window(clipRast, cell_data, x, y, me)
   if(!is.null(win)){
     mask <- clip_mask(mask, win)
-    if(!isTRUE(clipRast)){
+    if(!win$data_box){
       n_cut <- clip_n_cut(win, cell_data, x, y, me)
       if(n_cut > 0) warning(n_cut, " location(s) have error neighbourhoods extending beyond 'clipRast'; ",
                             "likelihood mass outside it is dropped and the rest renormalised.", call.=FALSE)
@@ -196,15 +195,14 @@ proc_lik <- function(x, y, sxx, syy, sxy, max_err, cell_data, times, return_type
     return(cbind(obs=res$inad_obs, cell=res$inad_cell, lik=res$inad_lik))
   }
   if(zero_ind) warning("Some observations have likelihood values of 0 in all 'cell_data' cells! ",
-                       "They are treated as missing (no location information) in the likelihood.")
+                       "make_walk_data() excludes them (times$excluded == \"no_cells\").")
 
   ncells <- prod(dim(cell_data)[1:2])
   clip <- NULL
   if(!is.null(win)){
     res$cell <- clip_renumber(res$cell, win)
     ncells <- win$nrow * win$ncol
-    clip <- list(ext = as.vector(win$ext), dim = c(nrow = win$nrow, ncol = win$ncol),
-                 cell = clip_cell_index(win))
+    clip <- clip_info(win)
   }
 
   if(return_type %in% c("sparse", "dense")){
@@ -222,10 +220,6 @@ proc_lik <- function(x, y, sxx, syy, sxy, max_err, cell_data, times, return_type
     out <- merge(out, times, by="obs")
     if(!is.null(clip)) attr(out, "clip") <- clip
     return(out)
-  } else if(return_type == "matrix_df"){
-    return(out)
-  } else {
-    warning("Unknown 'return_type' returning 'matrix_df'")
-    return(out)
   }
+  out   # "matrix_df"
 }
